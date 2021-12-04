@@ -24,6 +24,9 @@ http {
 	types_hash_max_size 2048;
 	server_tokens off;
 
+	# Security
+	limit_req_zone $binary_remote_addr zone=one:10m rate=100r/s;
+
 	# server_names_hash_bucket_size 64;
 	# server_name_in_redirect off;
 

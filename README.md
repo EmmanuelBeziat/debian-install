@@ -1,6 +1,8 @@
 # debian-install
 A quick stuff of my debian server config
 
+If help is needed for one of the following commands, use https://explainshell.com/ to get more info.
+
 # 0 Preliminary stuff
 
 ## 0.1 System update
@@ -57,12 +59,18 @@ service ssh restart
 
 ## 2.1 Tools
 
+Common tools
+
+```console
+apt install -y software-properties-common gnupg2 curl wget
+```
+
 ## 2.1.1 git
 
 Install:
 
 ```console
-apt install git
+apt install -y git
 git --version
 ```
 
@@ -86,36 +94,21 @@ apt install vim
 
 ## 2.3 Cron
 
-# 3 Security
-
-## 2.1 Iptables
-
-## 2.2 Fail2ban
-
-## 2.3 UFW
-
-```console
-apt install ufw
-ufw allow OpenSSH
-ufw enable
-ufw status
-```
-
 ## 2.4 Other
 
 
-# 4 Webserver
+# 3 Webserver
 
-## 4.1 Apache2
+## 3.1 Apache2
 
 Apache 2.4 will operate PHP
 
 **[💡 Documentation (httpd.apache.org)](https://httpd.apache.org/)**
 
-### 4.1.1 Install
+### 3.1.1 Install
 
 ```console
-apt install apache2
+apt install -y apache2
 ```
 
 Allow it in UFW:
@@ -137,7 +130,7 @@ Ensure that the service will be started at boot:
 systemctl enable apache2
 ```
 
-### 4.1.2 Configuration
+### 3.1.2 Configuration
 
 ✏️ `/etc/apache2/ports.conf`
 ```apache
@@ -202,25 +195,30 @@ a2enconf charset  javascrip-common  security
 a2enmod rewrite http2 mime ssl
 ```
 
-### 4.1.3 VirtualHosts config
+### 3.1.3 VirtualHosts config
 
 * **[📝 Exemple file: Vhost simple](samples/etc/apache2/vhost-simple.md)**
 * **[📝 Exemple file: Vhost wordpress](samples/etc/apache2/vhost-wordpress.md)**
 
+Then, restart the service.
 
-## 4.2 Nginx
+```console
+systemctl restart apache2
+```
+
+## 3.2 Nginx
 
 Nginx will be used as a reverse-proxy for Apache and NodeJS. It will operate static files.
 
 **[💡 Documentation (nginx.org)](https://nginx.org/en/docs/)**
 
-### 4.2.1 Install
+### 3.2.1 Install
 
 ```console
-apt install nginx
+apt install -y nginx
 ```
 
-### 4.2.2 Configuration
+### 3.2.2 Configuration
 
 ✏️ `/etc/nginx/nginx.conf`
 * **[📝 Exemple file](samples/etc/nginx/nginx.conf.md)**
@@ -348,7 +346,6 @@ types {
 	font/opentype                    ott;
 }
 
-
 gzip on;
 gzip_disable "msie6";
 gzip_vary on;
@@ -389,35 +386,203 @@ text/x-cross-domain-policy;
 # don't compress woff/woff2 as they're compressed already
 ```
 
-### 4.2.3 VirtualHosts config
+### 3.2.3 VirtualHosts config
 
 * **[📝 Exemple file: Vhost simple](samples/etc/nginx/vhost-simple.md)**
 
-## 4.3 PHP
+Then, check if your config is okay and restart the service.
 
-## 4.4 NodeJS
+```console
+nginx -t
+systemctl restart nginx
+```
 
-## 4.4.1 NPM
+## 3.3 PHP
 
-## 4.4.2 PM2
+## 3.4 NodeJS
+
+### 3.4.1 NPM
+
+### 3.4.2 PM2
 
 PM2 is a production process manager for Node.js applications with a built-in load balancer. It allows you to keep applications alive forever, to reload them without downtime and to facilitate common system admin tasks.
 
 **[💡 Documentation (npmjs.com)](https://www.npmjs.com/package/pm2)**
 
-# 5 Databases
+# 4 Databases
 
-## 5.1 MariaDB
+## 4.1 MariaDB
 
-## 5.2 MongoDB
+### 4.1.1 Install
 
-# 6 Letsencrypt
+```console
+apt install mariadb-server mariadb-client
+```
 
-# 7 Webhooks
+Run secure script to set password, remove test database and disabled remote root user login.
 
-# 8 Mail server
+```console
+mysql_secure_installation
+```
 
-## Postfix
+## 4.2 MongoDB
+
+
+
+## 4.3 PhpMyAdmin
+
+🔺I’ll be testing and using Adminer on my new server. The configuration shown here is for documentation purpose. Jump to next section for Adminer installation.
+
+## 4.4 Adminer
+
+Alternative to PhpMyAdmin, Adminer is a web-based MySQL management tool. It is a free and open-source database management tool written in PHP.
+
+```console
+wget "http://www.adminer.org/latest.php" -O /var/www/emmanuelbeziat/sql/index.php
+wget "https://raw.githubusercontent.com/vrana/adminer/master/designs/dracula/adminer.css" -O /var/www/emmanuelbeziat/sql/adminer.css
+chown -R www-data:www-data /var/www/emmanuelbeziat/sql
+chmod -R 755 /var/www/emmanuelbeziat/sql/index.php
+```
+
+**[💡 Documentation (adminer.org)](https://www.adminer.org/)**
+
+# 5 Letsencrypt (Certbot)
+
+```console
+apt install -y certbot
+```
+
+Commands lists:
+
+# 6 Webhook
+
+## 6.1 Install Go
+
+Webhook require Go to be installed.
+
+Go to [Go website](https://go.dev/dl/) to get the latest version.
+
+```console
+wget https://go.dev/dl/go1.17.4.linux-amd64.tar.gz
+tar -xvf go1.17.4.linux-amd64.tar.gz -C /usr/local
+```
+
+Add go to PATH variable and check if it is working.
+
+```console
+export PATH=$PATH:/usr/local/go/bin
+go version
+```
+
+## 6.2 Install Webhook
+
+**[💡 Documentation (github.com/adnanh)](https://github.com/adnanh/webhook)**
+
+```console
+apt install -y webhook
+```
+
+Prepare the general config file.
+
+✏️ `/usr/share/hooks/hooks.json`
+
+** [📝 Example file](samples/hooks/hooks.json)**
+
+Add the script to be executed by the hooks
+
+✏️ `/usr/share/hooks/mywebsite/deploy.sh`
+
+```bash
+#!/bin/bash
+
+exec > /usr/share/hooks/mywebsite/output.log 2>&1
+
+git fetch --all
+git checkout --force "origin/main"
+```
+
+Then make it executable.
+
+```console
+chmod +x /usr/share/hooks/mywebsite/deploy.sh
+```
+
+
+# 7 Mail server
+
+## 7.1 Postfix
+
+# 8 Security
+
+## 8.1 UFW
+
+UFW is a firewall that provides a simple, easy-to-use interface for managing network.
+
+```console
+apt install ufw
+```
+
+🔺 UFW is NOT enabled by default, to avoid being locked out the server. To check the status, use:
+
+```concole
+ufw status
+```
+
+Default rules are located in `/etc/default/ufw`.
+
+Immediately allow your SSH port to avoid being locked out. Finally, enable UFW, and check its status.
+
+```console
+ufw allow <SSH_PORT>/tcp
+ufw enable
+ufw status
+```
+
+Now, proceed to add custom rules, either with `ufw allow` or `ufw deny`, on a chosen port. Alternatively, you can use `ufw allow <app>` to allow all traffic on a given application.
+
+Use `ufw app list` to list all applications.
+
+These applications rules are defined in `/etc/ufw/applications.d/`.
+
+```console
+ufw allow in "WWW full"
+
+
+**💡 USEFUL TIP**
+
+You can list all ufw rules with a specific number, for example to easily delete them.
+
+```console
+ufw status numbered
+ufw delete <number>
+```
+
+## 8.2 Fail2ban
+
+### 8.2.1 Installation
+
+```console
+apt get install fail2ban
+```
+
+To avoid custom rules to be erased by a new update, create a copy of the configuration file.
+
+```console
+cp /etc/fail2ban/jail.conf  /etc/fail2ban/jail.local
+```
+
+### 8.2.2 Custom configuration
+
+✏️ `/etc/fail2ban/jail.local`
+
+* Under `ssh`:
+  * `port = <SSH_PORT>`
+
+Then, restart the service to load the new configuration.
+
+```console
+systemctl restart fail2ban
+```
 
 # 9 FTP
 
