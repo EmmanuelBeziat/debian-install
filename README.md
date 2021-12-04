@@ -111,13 +111,6 @@ Apache 2.4 will operate PHP
 apt install -y apache2
 ```
 
-Allow it in UFW:
-
-```console
-ufw allow 'Apache'
-ufw status
-```
-
 Check its status:
 
 ```console
