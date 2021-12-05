@@ -470,13 +470,53 @@ Then restart Apache2.
 
 ## 3.4 NodeJS
 
-### 3.4.1 NPM
+NodeJS can be installed with the package manager, but in order to get more flexibility over the version, I prefer to use NVM (Node Version Manager).
+
+**[💡 Documentation (github.com/nvm-sh/nvm)](https://github.com/nvm-sh/nvm)**
+
+Download the latest installer script from the repository and run it.
+
+```console
+curl -sL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh -o install_nvm.sh
+bash install_nvm.sh
+source ~/.profile
+nvm -v
+```
+
+Then, install the desired version of NodeJS with nvm command:
+
+```console
+nvm ls-remote
+nvm install v17.2.0
+nvm use v17.2.0
+nvm alias default 17.2.0
+```
+
+NPM should have been installed with NodeJS. It can be updated right away with the command:
+
+```console
+npm i -g npm@latest
+```
+
+### 3.4.1 Npm-check-Update
+
+Check for outdated, incorrect and unused dependencies, globally or locally.
+
+**[💡 Documentation (github.com/npm/npm-check-updates)](https://www.npmjs.com/package/npm-check-updates)**
+
+```console
+npm install -g npm-check-updates
+```
 
 ### 3.4.2 PM2
 
 PM2 is a production process manager for Node.js applications with a built-in load balancer. It allows you to keep applications alive forever, to reload them without downtime and to facilitate common system admin tasks.
 
 **[💡 Documentation (npmjs.com)](https://www.npmjs.com/package/pm2)**
+
+```console
+npm install pm2 -g
+```
 
 # 4 Databases
 
@@ -494,8 +534,13 @@ Run secure script to set password, remove test database and disabled remote root
 mysql_secure_installation
 ```
 
-## 4.2 MongoDB
+Create an admin utilisator for external connections.
 
+```console
+mysql -u root -p
+```
+
+## 4.2 MongoDB
 
 
 ## 4.3 PhpMyAdmin
