@@ -96,6 +96,12 @@ apt install vim
 
 ## 2.4 Other
 
+Change timezone
+
+```console
+timedatectl set-timezone Europe/Paris
+```
+
 
 # 3 Webserver
 
@@ -185,7 +191,7 @@ a2enconf charset  javascrip-common  security
 
 **Enable mods**
 ```console
-a2enmod rewrite http2 mime ssl
+a2enmod rewrite http2 mime ssl deflate env headers mpm_event deflate actions
 ```
 
 ### 3.1.3 VirtualHosts config
@@ -302,23 +308,6 @@ map $sent_http_content_type $expires {
 }
 ```
 
-✏️ `/etc/nginx/snippets/fastcgi=php.conf`
-```nginx
-# regex to split $uri to $fastcgi_script_name and $fastcgi_path
-fastcgi_split_path_info ^(.+\.php)(/.+)$;
-
-# Check that the PHP script exists before passing it
-try_files $fastcgi_script_name =404;
-
-# Bypass the fact that try_files resets $fastcgi_path_info
-# see: http://trac.nginx.org/nginx/ticket/321
-set $path_info $fastcgi_path_info;
-fastcgi_param PATH_INFO $path_info;
-
-fastcgi_index index.php;
-include fastcgi.conf;
-```
-
 ✏️ `/etc/nginx/snippets/favicon_error.conf`
 ```nginx
 location = /favicon.ico {
@@ -379,6 +368,33 @@ text/x-cross-domain-policy;
 # don't compress woff/woff2 as they're compressed already
 ```
 
+✏️ `/etc/nginx/snippets/ssl-config.conf`
+```nginx
+ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
+
+# Dropping SSL and TLSv1
+ssl_prefer_server_ciphers on;
+ssl_ciphers "ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-DSS-AES128-GCM-SHA256:kEDH+AESGCM:ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA:DHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA:DHE-DSS-AES128-SHA256:DHE-RSA-AES256-SHA256:DHE-DSS-AES256-SHA:DHE-RSA-AES256-SHA:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!3DES:!MD5:!PSK";
+ssl_ecdh_curve secp384r1;
+ssl_dhparam /etc/ssl/certs/dhparam.pem;
+ssl_session_cache shared:SSL:10m;
+ssl_session_tickets off;
+
+# Cache credentials
+ssl_session_timeout 1h;
+
+# Stapling
+ssl_stapling on;
+ssl_stapling_verify on;
+resolver 8.8.8.8 8.8.4.4 208.67.222.222 valid=300s;
+resolver_timeout 5s;
+```
+
+✏️ `/etc/nginx/mime.types`
+
+* **[📝 Exemple file: Mime types](samples/etc/nginx/mime.types.md)**
+
+
 ### 3.2.3 VirtualHosts config
 
 * **[📝 Exemple file: Vhost simple](samples/etc/nginx/vhost-simple.md)**
@@ -391,6 +407,66 @@ systemctl restart nginx
 ```
 
 ## 3.3 PHP
+
+### 3.3.1 Installation
+
+To use php 8, a third party repository is needed. If you want to stick with php 7.4, ignore the first steps.
+
+```console
+apt -y install apt-transport-https lsb-release ca-certificates curl wget
+wget -O /etc/apt/trusted.gpg.d/php.gpg https://packages.sury.org/php/apt.gpg
+sh -c 'echo "deb https://packages.sury.org/php/ $(lsb_release -sc) main" > /etc/apt/sources.list.d/php.list'
+```
+
+Then update php and check if php 8 is available for installation.
+
+```console
+apt update
+apt-cache policy php
+```
+
+If everything is reay, install the version of php you need, then check if it's installed correctly.
+
+```console
+apt install php8.0 php8.0-opcache libapache2-mod-php8.0 php8.0-mysql php8.0-curl php8.0-gd php8.0-intl php8.0-mbstring php8.0-xml php8.0-zip php8.0-fpm php8.0-readline php8.0-xml
+php -v
+```
+
+Add a mod fof factcgi in apache.
+
+✏️ `/etc/nginx/mods-enabled/fastcgi.conf`
+
+```apache
+<IfModule mod_fastcgi.c>
+	AddHandler fastcgi-script .fcgi
+	FastCgiIpcDir /var/lib/apache2/fastcgi
+
+	AddType application/x-httpd-fastphp .php
+	Action application/x-httpd-fastphp /php-fcgi
+	Alias /php-fcgi /usr/lib/cgi-bin/php-fcgi
+	FastCgiExternalServer /usr/lib/cgi-bin/php-fcgi -socket /run/php/php7.2-fpm.sock -pass-header Authorization
+
+	<Directory /usr/lib/cgi-bin>
+		Require all granted
+	</Directory>
+</IfModule>
+```
+
+And enable it.
+
+```console
+a2enmod fastcgi
+```
+
+Enable the php8.0-fpm service.
+
+```console
+a2enmod proxy_fcgi setenvif
+a2enconf php8.0-fpm
+a2dismod php8.0
+```
+
+Then restart Apache2.
 
 ## 3.4 NodeJS
 
