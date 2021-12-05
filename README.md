@@ -45,7 +45,7 @@ Configuration:
 * `UseDNS no`
 * `AcceptEnv LANG LC_*`
 
-**[📝 Exemple file](samples/etc/ssh/sshd_config.md)**
+**[📝 Example file](samples/etc/ssh/sshd_config.md)**
 
 ----------
 
@@ -196,8 +196,8 @@ a2enmod rewrite http2 mime ssl deflate env headers mpm_event deflate actions
 
 ### 3.1.3 VirtualHosts config
 
-* **[📝 Exemple file: Vhost simple](samples/etc/apache2/vhost-simple.md)**
-* **[📝 Exemple file: Vhost wordpress](samples/etc/apache2/vhost-wordpress.md)**
+* **[📝 Example file: Vhost simple](samples/etc/apache2/vhost-simple.md)**
+* **[📝 Example file: Vhost wordpress](samples/etc/apache2/vhost-wordpress.md)**
 
 Then, restart the service.
 
@@ -220,7 +220,7 @@ apt install -y nginx
 ### 3.2.2 Configuration
 
 ✏️ `/etc/nginx/nginx.conf`
-* **[📝 Exemple file](samples/etc/nginx/nginx.conf.md)**
+* **[📝 Example file](samples/etc/nginx/nginx.conf.md)**
 
 ✏️ `/etc/nginx/conf.d/cache.conf`
 ```nginx
@@ -392,12 +392,12 @@ resolver_timeout 5s;
 
 ✏️ `/etc/nginx/mime.types`
 
-* **[📝 Exemple file: Mime types](samples/etc/nginx/mime.types.md)**
+* **[📝 Example file: Mime types](samples/etc/nginx/mime.types.md)**
 
 
 ### 3.2.3 VirtualHosts config
 
-* **[📝 Exemple file: Vhost simple](samples/etc/nginx/vhost-simple.md)**
+* **[📝 Example file: Vhost simple](samples/etc/nginx/vhost-simple.md)**
 
 Then, check if your config is okay and restart the service.
 
@@ -467,6 +467,15 @@ a2dismod php8.0
 ```
 
 Then restart Apache2.
+
+Once everything is working, configure your php instance.
+
+✏️ `/etc/php/8.0/fpm/php.ini`
+
+* `max_execution_time = 300`
+* `post_max_size = 512M`
+* `upload_max_filesize = 512M`
+* `date.timezone = Europe/Paris`
 
 ## 3.4 NodeJS
 
@@ -542,6 +551,81 @@ mysql -u root -p
 
 ## 4.2 MongoDB
 
+**[💡 Documentation (mongodb.com)](https://docs.mongodb.com/manual/tutorial/getting-started/)**
+
+### 4.2.1 Install
+
+> 🛑 MongoDB has odd compatibility issues with CPUs. It needs AVX, which is not available on all CPUs, mostly server CPUs.
+>
+> If you can't use the last version, you must try with previous ones.
+
+
+MongoDB must be added to package manager, and require a pgp key to do so.
+
+/etc/apt/trusted.gpg.d
+
+```console
+KEYRING=/usr/share/keyrings/mongodb.gpg
+wget -qO - https://www.mongodb.org/static/pgp/server-5.0.asc | gpg --dearmor | tee "$KEYRING" >/dev/null
+echo "deb http://repo.mongodb.org/apt/debian buster/mongodb-org/5.0 main" | tee /etc/apt/sources.list.d/mongodb-org-5.0.list
+apt update
+apt install -y mongodb-org mongodb-org-database mongodb-org-server mongodb-org-shell mongodb-org-mongos mongodb-org-tools
+```
+
+### 4.2.2 Configure
+
+✏️ `/etc/mongod.conf`
+
+```yaml
+net:
+  port: <CUSTOM_PORT>`
+```
+
+```console
+chown -R mongodb:mongodb /var/lib/mongodb
+chown -R mongodb:mongodb /var/log/mongodb
+chown mongodb:mongodb /tmp/mongodb-<CUSTOM_PORT>.sock
+```
+
+Then, start the service.
+
+```console
+systemctl start mongod
+systemctl enable mongod
+mongod --version
+```
+
+> 🛑 After installation, MongoDB is not secured at all, and can be accessed without password. It **MUST** be setup properly. 🛑
+
+First, connect to the database and use admin database to create a new user.
+
+```console
+mongo
+use admin
+db.createUser({ user: "admin", pwd: "admin", roles: [{role: "userAdminAnyDatabase", db: "admin"}, "readWriteAnyDatabase" ]})
+```
+
+Next, configure MongoDB file configuration.
+
+✏️ `/etc/mongod.conf`
+
+```yaml
+security:
+  authorization: enabled`
+```
+
+Then restart the service.
+
+```console
+systemctl restart mongod
+```
+
+To connect to the database, use the command:
+
+```console
+mongo -u mongouser -p --authenticationDatabase admin
+```
+
 
 ## 4.3 PhpMyAdmin
 
@@ -551,16 +635,50 @@ mysql -u root -p
 
 Alternative to PhpMyAdmin, Adminer is a web-based MySQL management tool. It is a free and open-source database management tool written in PHP.
 
-```console
-wget "http://www.adminer.org/latest.php" -O /var/www/emmanuelbeziat/sql/index.php
-wget "https://raw.githubusercontent.com/vrana/adminer/master/designs/dracula/adminer.css" -O /var/www/emmanuelbeziat/sql/adminer.css
-chown -R www-data:www-data /var/www/emmanuelbeziat/sql
-chmod -R 755 /var/www/emmanuelbeziat/sql/index.php
-```
 
 **[💡 Documentation (adminer.org)](https://www.adminer.org/)**
 
+```console
+wget "http://www.adminer.org/latest.php" -O /var/www/emmanuelbeziat/sql/adminer.php
+wget "https://raw.githubusercontent.com/vrana/adminer/master/designs/dracula/adminer.css" -O /var/www/emmanuelbeziat/sql/adminer.css
+chown -R www-data:www-data /var/www/emmanuelbeziat/sql
+chmod -R 755 /var/www/emmanuelbeziat/sql/adminer.php
+```
+
+To add plugins, create an index file in the same directory:
+
+```php
+function adminer_object() {
+    // required to run any plugin
+    include_once './plugins/plugin.php';
+
+    // autoloader
+    foreach (glob("plugins/*.php") as $filename) {
+        include_once "./$filename";
+    }
+
+    $plugins = [
+        // specify enabled plugins here
+	];
+
+    /* It is possible to combine customization and plugins:
+    class AdminerCustomization extends AdminerPlugin {
+    }
+    return new AdminerCustomization($plugins);
+    */
+
+    return new AdminerPlugin($plugins);
+}
+
+// include original Adminer or Adminer Editor
+include './adminer.php';
+```
+
 # 5 Letsencrypt (Certbot)
+
+Create SSL certificates for virtualhosts.
+
+**[💡 Documentation (certbot.eff.org)](https://certbot.eff.org/)**
 
 ```console
 apt install -y certbot
@@ -600,7 +718,7 @@ Prepare the general config file.
 
 ✏️ `/usr/share/hooks/hooks.json`
 
-** [📝 Example file](samples/hooks/hooks.json)**
+* **[📝 Example file](samples/hooks/hooks.json)**
 
 Add the script to be executed by the hooks
 
