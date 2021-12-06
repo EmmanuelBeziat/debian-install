@@ -28,20 +28,6 @@ server {
 
 # Redirections
 server {
-    listen 443 ssl http2;
-    server_name mysite.com;
-
-    location / {
-        return 301 http://www.mysite.com$request_uri;
-    }
-
-    ssl_certificate /etc/letsencrypt/live/mysite.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/mysite.com/privkey.pem;
-    include /etc/letsencrypt/options-ssl-nginx.conf;
-    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
-}
-
-server {
     if ($host = mysite.com) {
         return 301 https://$host$request_uri;
     }
