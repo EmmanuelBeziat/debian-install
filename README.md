@@ -428,13 +428,13 @@ apt-cache policy php
 If everything is reay, install the version of php you need, then check if it's installed correctly.
 
 ```console
-apt install php8.0 php8.0-opcache libapache2-mod-php8.0 php8.0-mysql php8.0-curl php8.0-gd php8.0-intl php8.0-mbstring php8.0-xml php8.0-zip php8.0-fpm php8.0-readline php8.0-xml
+apt install php8.1 php8.1-opcache libapache2-mod-php8.1 php8.1-mysql php8.1-curl php8.1-gd php8.1-intl php8.1-mbstring php8.1-xml php8.1-zip php8.1-fpm php8.1-readline php8.1-xml
 php -v
 ```
 
 Add a mod fof factcgi in apache.
 
-✏️ `/etc/nginx/mods-enabled/fastcgi.conf`
+✏️ `/etc/apache2/mods-enabled/fastcgi.conf`
 
 ```apache
 <IfModule mod_fastcgi.c>
@@ -444,7 +444,7 @@ Add a mod fof factcgi in apache.
 	AddType application/x-httpd-fastphp .php
 	Action application/x-httpd-fastphp /php-fcgi
 	Alias /php-fcgi /usr/lib/cgi-bin/php-fcgi
-	FastCgiExternalServer /usr/lib/cgi-bin/php-fcgi -socket /run/php/php7.2-fpm.sock -pass-header Authorization
+	FastCgiExternalServer /usr/lib/cgi-bin/php-fcgi -socket /run/php/php8.1-fpm.sock -pass-header Authorization
 
 	<Directory /usr/lib/cgi-bin>
 		Require all granted
@@ -458,19 +458,19 @@ And enable it.
 a2enmod fastcgi
 ```
 
-Enable the php8.0-fpm service.
+Enable the php8.1-fpm service.
 
 ```console
 a2enmod proxy_fcgi setenvif
-a2enconf php8.0-fpm
-a2dismod php8.0
+a2enconf php8.1-fpm
+a2dismod php8.1
 ```
 
 Then restart Apache2.
 
 Once everything is working, configure your php instance.
 
-✏️ `/etc/php/8.0/fpm/php.ini`
+✏️ `/etc/php/8.1/fpm/php.ini`
 
 * `max_execution_time = 300`
 * `post_max_size = 512M`
