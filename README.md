@@ -565,11 +565,10 @@ MongoDB must be added to package manager, and require a pgp key to do so.
 /etc/apt/trusted.gpg.d
 
 ```console
-KEYRING=/usr/share/keyrings/mongodb.gpg
-wget -qO - https://www.mongodb.org/static/pgp/server-5.0.asc | gpg --dearmor | tee "$KEYRING" >/dev/null
-echo "deb http://repo.mongodb.org/apt/debian buster/mongodb-org/5.0 main" | tee /etc/apt/sources.list.d/mongodb-org-5.0.list
+wget -qO - https://www.mongodb.org/static/pgp/server-4.4.asc | apt-key add -
+echo "deb http://repo.mongodb.org/apt/debian buster/mongodb-org/4.4 main" | tee /etc/apt/sources.list.d/mongodb-org-4.4.list
 apt update
-apt install -y mongodb-org mongodb-org-database mongodb-org-server mongodb-org-shell mongodb-org-mongos mongodb-org-tools
+apt install -y mongodb-org=4.4.10 mongodb-org-server=4.4.10 mongodb-org-shell=4.4.10 mongodb-org-mongos=4.4.10 mongodb-org-tools=4.4.10
 ```
 
 ### 4.2.2 Configure
@@ -584,13 +583,13 @@ net:
 ```console
 chown -R mongodb:mongodb /var/lib/mongodb
 chown -R mongodb:mongodb /var/log/mongodb
-chown mongodb:mongodb /tmp/mongodb-<CUSTOM_PORT>.sock
 ```
 
 Then, start the service.
 
 ```console
 systemctl start mongod
+chown mongodb:mongodb /tmp/mongodb-<CUSTOM_PORT>.sock
 systemctl enable mongod
 mongod --version
 ```
@@ -600,7 +599,7 @@ mongod --version
 First, connect to the database and use admin database to create a new user.
 
 ```console
-mongo
+mongo --port <CUSTOM_PORT>
 use admin
 db.createUser({ user: "admin", pwd: "admin", roles: [{role: "userAdminAnyDatabase", db: "admin"}, "readWriteAnyDatabase" ]})
 ```
@@ -623,7 +622,7 @@ systemctl restart mongod
 To connect to the database, use the command:
 
 ```console
-mongo -u mongouser -p --authenticationDatabase admin
+mongo --port <CUSTOM_PORT> -u mongouser -p --authenticationDatabase admin
 ```
 
 
@@ -778,7 +777,7 @@ These applications rules are defined in `/etc/ufw/applications.d/`.
 
 ```console
 ufw allow in "WWW full"
-
+```
 
 **💡 USEFUL TIP**
 
