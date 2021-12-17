@@ -410,7 +410,7 @@ systemctl restart nginx
 
 ### 3.3.1 Installation
 
-To use php 8, a third party repository is needed. If you want to stick with php 7.4, ignore the first steps.
+To use php 8, a third party repository is needed. If you want to stick with php 7.4, ignore the first steps and replace "8.1" by "7.4".
 
 ```console
 apt -y install apt-transport-https lsb-release ca-certificates curl wget
