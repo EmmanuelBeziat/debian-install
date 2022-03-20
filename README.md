@@ -1,6 +1,8 @@
 # debian-install
 A quick stuff of my debian server config
 
+![Debian logo](https://upload.wikimedia.org/wikipedia/commons/thumb/4/4a/Debian-OpenLogo.svg/182px-Debian-OpenLogo.svg.png)
+
 If help is needed for one of the following commands, use https://explainshell.com/ to get more info.
 
 # 0 Preliminary stuff
@@ -67,6 +69,10 @@ apt install -y software-properties-common gnupg2 curl wget
 
 ## 2.1.1 git
 
+![Git logo](https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Git-logo.svg/320px-Git-logo.svg.png)
+
+Git will be used to manage websites from github repositories.
+
 Install:
 
 ```console
@@ -85,6 +91,10 @@ git config --global core.editor "vim"
 **[💡 Documentation (git-scm.com)](https://git-scm.com/book/fr/v2/Personnalisation-de-Git-Configuration-de-Git)**
 
 ## 2.1.2 vim
+
+![Vim logo](https://upload.wikimedia.org/wikipedia/commons/thumb/9/9f/Vimlogo.svg/240px-Vimlogo.svg.png)
+
+Vim is a free and open-source, screen-based text editor program.
 
 ```console
 apt install vim
@@ -105,6 +115,8 @@ timedatectl set-timezone Europe/Paris
 # 3 Webserver
 
 ## 3.1 Apache2
+
+![Apache Logo](https://upload.wikimedia.org/wikipedia/commons/thumb/1/10/Apache_HTTP_server_logo_%282019-present%29.svg/480px-Apache_HTTP_server_logo_%282019-present%29.svg.png)
 
 Apache 2.4 will operate PHP
 
@@ -205,6 +217,8 @@ systemctl restart apache2
 ```
 
 ## 3.2 Nginx
+
+![Nginx Logo](https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Nginx_logo.svg/320px-Nginx_logo.svg.png)
 
 Nginx will be used as a reverse-proxy for Apache and NodeJS. It will operate static files.
 
@@ -407,6 +421,8 @@ systemctl restart nginx
 
 ## 3.3 PHP
 
+![PHP](https://upload.wikimedia.org/wikipedia/commons/thumb/2/27/PHP-logo.svg/320px-PHP-logo.svg.png)
+
 ### 3.3.1 Installation
 
 To use php 8, a third party repository is needed. If you want to stick with php 7.4, ignore the first steps and replace "8.1" by "7.4".
@@ -478,6 +494,8 @@ Once everything is working, configure your php instance.
 
 ## 3.4 NodeJS
 
+![NodeJS Logo](https://upload.wikimedia.org/wikipedia/commons/thumb/d/d9/Node.js_logo.svg/320px-Node.js_logo.svg.png)
+
 NodeJS can be installed with the package manager, but in order to get more flexibility over the version, I prefer to use NVM (Node Version Manager).
 
 **[💡 Documentation (github.com/nvm-sh/nvm)](https://github.com/nvm-sh/nvm)**
@@ -530,6 +548,14 @@ npm install pm2 -g
 
 ## 4.1 MariaDB
 
+![Maria DB Logo](https://upload.wikimedia.org/wikipedia/commons/thumb/c/ca/MariaDB_colour_logo.svg/320px-MariaDB_colour_logo.svg.png)
+
+MariaDB Server is one of the most popular open source relational databases. It’s made by the original developers of MySQL and guaranteed to stay open source. It is part of most cloud offerings and the default in most Linux distributions.
+
+It is built upon the values of performance, stability, and openness, and MariaDB Foundation ensures contributions will be accepted on technical merit. Recent new functionality includes advanced clustering with Galera Cluster 4, compatibility features with Oracle Database and Temporal Data Tables, allowing one to query the data as it stood at any point in the past.
+
+**[💡 Documentation (mariadb.org)](https://mariadb.org/documentation/)**
+
 ### 4.1.1 Install
 
 ```console
@@ -549,6 +575,10 @@ mysql -u root -p
 ```
 
 ## 4.2 MongoDB
+
+![MongoDB Logo](https://upload.wikimedia.org/wikipedia/commons/thumb/9/93/MongoDB_Logo.svg/320px-MongoDB_Logo.svg.png)
+
+MongoDB is a source-available cross-platform document-oriented database program. Classified as a NoSQL database program, MongoDB uses JSON-like documents with optional schemas. MongoDB is developed by MongoDB Inc. and licensed under the Server Side Public License (SSPL).
 
 **[💡 Documentation (mongodb.com)](https://docs.mongodb.com/manual/tutorial/getting-started/)**
 
@@ -674,6 +704,8 @@ include './adminer.php';
 
 # 5 SSL and HTTPS
 
+![Letsencrypt logo](https://upload.wikimedia.org/wikipedia/en/thumb/0/07/Let%27s_Encrypt.svg/320px-Let%27s_Encrypt.svg.png)
+
 Create SSL certificates for virtualhosts.
 
 ## 5.1 Certbot
@@ -701,6 +733,8 @@ Renewal should be enabled by default.
 # 6 Webhook
 
 ## 6.1 Install Go
+
+![Go logo](https://upload.wikimedia.org/wikipedia/commons/thumb/0/05/Go_Logo_Blue.svg/320px-Go_Logo_Blue.svg.png)
 
 Webhook require Go to be installed.
 
@@ -987,6 +1021,8 @@ If you want to use custom filters with fail2ban it's possible by creating new fi
 # 10 Services
 
 ## 10.1 Screenshot app (Monosnap, ShareX, etc.)
+
+![ShareX Logo](https://upload.wikimedia.org/wikipedia/commons/d/d1/ShareX_Logo.png | width=100)
 
 The point here is to define an access for a screenshot app to upload files in a specific directory via sftp.
 
