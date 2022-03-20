@@ -1022,7 +1022,7 @@ If you want to use custom filters with fail2ban it's possible by creating new fi
 
 ## 10.1 Screenshot app (Monosnap, ShareX, etc.)
 
-![ShareX Logo](https://upload.wikimedia.org/wikipedia/commons/d/d1/ShareX_Logo.png | width=100)
+![ShareX Logo](https://upload.wikimedia.org/wikipedia/commons/d/d1/ShareX_Logo.png)
 
 The point here is to define an access for a screenshot app to upload files in a specific directory via sftp.
 
