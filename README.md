@@ -102,7 +102,6 @@ Change timezone
 timedatectl set-timezone Europe/Paris
 ```
 
-
 # 3 Webserver
 
 ## 3.1 Apache2
@@ -199,7 +198,7 @@ a2enmod rewrite http2 mime ssl deflate env headers mpm_event deflate actions
 * **[📝 Example file: Vhost simple](samples/etc/apache2/vhost-simple.md)**
 * **[📝 Example file: Vhost wordpress](samples/etc/apache2/vhost-wordpress.md)**
 
-Then, restart the service.
+⚙️ Then, restart the service.
 
 ```console
 systemctl restart apache2
@@ -266,7 +265,7 @@ add_header X-Content-Type-Options nosniff;
 add_header Cache-Control "public, immutable";
 add_header Strict-Transport-Security "max-age=500; includeSubDomains; preload;";
 add_header Referrer-Policy origin-when-cross-origin;
-add_header Content-Security-Policy "default-src 'self'; connect-src 'self' http: https: *.github.com api.github.com *.youtube.com; img-src 'self' data: http: https: *.gravatar.com youtube.com www.youtube.com *.youtube.com; script-src 'self' 'unsafe-inline' 'unsafe-eval' http: https: www.google-analytics.com *.googleapis.com *.googlesynddication.com *.doubleclick.net youtube.com www.youtube.com *.youtube.com; style-src 'self' 'unsafe-inline' http: https: *.googleapis.com youtube.com www.youtube.com *.youtube.com; font-src 'self' data: http: https: *.googleapis.com *.googleuservercontent.com youtube.com www.youtube.com; child-src http: https: youtube.com www.youtube.com; base-uri 'self'; frame-ancestors 'self'";
+add_header Content-Security-Policy "default-src 'self'; connect-src 'self' http: https: blob: *.github.com api.github.com *.youtube.com; img-src 'self' data: http: https: blob: *.gravatar.com youtube.com www.youtube.com *.youtube.com; script-src 'self' 'unsafe-inline' 'unsafe-eval' http: https: blob: www.google-analytics.com *.googleapis.com *.googlesynddication.com *.doubleclick.net youtube.com www.youtube.com *.youtube.com; style-src 'self' 'unsafe-inline' http: https: blob: *.googleapis.com youtube.com www.youtube.com *.youtube.com; font-src 'self' data: http: https: blob: *.googleapis.com *.googleuservercontent.com youtube.com www.youtube.com; child-src http: https: blob: youtube.com www.youtube.com; base-uri 'self'; frame-ancestors 'self'";
 ```
 
 ✏️ `/etc/nginx/conf.d/proxy.conf`
@@ -399,7 +398,7 @@ resolver_timeout 5s;
 
 * **[📝 Example file: Vhost simple](samples/etc/nginx/vhost-simple.md)**
 
-Then, check if your config is okay and restart the service.
+⚙️ Then, check if your config is okay and restart the service.
 
 ```console
 nginx -t
@@ -466,7 +465,7 @@ a2enconf php8.1-fpm
 a2dismod php8.1
 ```
 
-Then restart Apache2.
+⚙️ Then restart Apache2.
 
 Once everything is working, configure your php instance.
 
@@ -613,7 +612,7 @@ security:
   authorization: enabled`
 ```
 
-Then restart the service.
+⚙️ Then restart the service.
 
 ```console
 systemctl restart mongod
@@ -673,17 +672,31 @@ function adminer_object() {
 include './adminer.php';
 ```
 
-# 5 Letsencrypt (Certbot)
+# 5 SSL and HTTPS
 
 Create SSL certificates for virtualhosts.
 
-**[💡 Documentation (certbot.eff.org)](https://certbot.eff.org/)**
+## 5.1 Certbot
+
+**[💡 Documentation (eff-certbot.readthedocs.io)](https://eff-certbot.readthedocs.io/en/stable/using.html)**
 
 ```console
 apt install -y certbot
 ```
 
-Commands lists:
+Simply add a new domain:
+
+```console
+certbot certonly --nginx --webroot -w /var/www/mywebsite/ -d mywebsite.com -d www.mywebsite.com
+```
+
+If, at any point, this certificate needs to be expanded to include a new domain, you can use the expand command:
+
+```console
+certbot --expand -d mywebsite,www.mywebsite.com,xyz.mywebsite.com
+```
+
+Renewal should be enabled by default.
 
 # 6 Webhook
 
@@ -738,10 +751,110 @@ Then make it executable.
 chmod +x /usr/share/hooks/mywebsite/deploy.sh
 ```
 
+⚙️ Run webhook with:
+
+```console
+/usr/bin/webhook -hooks hooks.json -secure -verbose
+```
+
+### 6.2.1 Custom service
+
+In case webhook default service isn't providing enough flexibility, you can create a custom service.
+
+Start by disabling the default service:
+
+```console
+systemctl disable webhook
+```
+
+Let’s create a service file:
+
+✏️ `/opt/webhook/webhook.service`:
+
+```bash
+[Unit]
+Description=Webhook Custom Service
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/webhook -hooks=/usr/share/hooks.json -hotreload=true -port=9000 -secure=false -verbose=true -debug=false
+WorkingDirectory=/opt/webhook
+KillMode=process
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Now, it needs to be linked in `/etc/systemd/system/`:
+
+```console
+ln -s /opt/webhook/webhook.service /etc/systemd/system/mywebhook.service
+systemctl daemon-reload
+systemctl enable mywebhook
+systemctl start mywebhook
+```
+
+**[💡 Documentation (github.com/adnanh/webhook/discussions/562)](https://github.com/adnanh/webhook/discussions/562)**
 
 # 7 Mail server
 
 ## 7.1 Postfix
+
+Install Postfix (duh).
+
+```console
+apt install -y postfix
+```
+
+### 7.1.1 Configure Postfix as a Forwarding System Mail
+
+During the install, an assistant will ask which type of mail configuration you wish to use. Chose "no configuration".
+
+Let’s configure the main.cf file:
+
+✏️ `/etc/postfix/main.cf`
+
+* `myhostname = <DOMAIN>`
+
+At the end of the file, add:
+
+```bash
+inet_protocols = all
+inet_interfaces = all
+
+virtual_alias_domains = <DOMAIN>
+virtual_alias_maps = hash:/etc/postfix/virtual
+alias_maps = hash:/etc/postfix/virtual
+alias_database = hash:/etc/postfix/virtual
+mydestination = localhost
+relayhost =
+mailbox_size_limit = 0
+recipient_delimiter = +
+
+# TLS parameters
+smtpd_tls_cert_file=/etc/letsencrypt/live/<DOMAIN>/fullchain.pem
+smtpd_tls_key_file=/etc/letsencrypt/live/<DOMAIN>/privkey.pem
+smtp_use_tls=yes
+smtpd_tls_session_cache_database = btree:${data_directory}/smtpd_scache
+smtp_tls_session_cache_database = btree:${data_directory}/smtp_scache
+```
+
+Now, we need to create a `virtual` file, and add all the domains to be used as virtual mailboxes (one per line):
+
+✏️ `/etc/postfix/virtual`
+
+```bash
+contact@<DOMAIN> <CONTACT_EMAIL>
+hello@<DOMAIN> <HELLO_EMAIL>
+```
+
+⚙️ Then, you need to build the `virtual` file as a data service. Then, restart Postfix:
+
+```console
+postmap /etc/postfix/virtual
+systemctl restart postfix
+```
 
 # 8 Security
 
@@ -759,25 +872,53 @@ apt install ufw
 ufw status
 ```
 
-Default rules are located in `/etc/default/ufw`.
+Default rules are located in `/etc/default/ufw`. Applications rules are defined in `/etc/ufw/applications.d/`.
 
-Immediately allow your SSH port to avoid being locked out. Finally, enable UFW, and check its status.
+🛑 Let’s start by allow your SSH port to avoid being locked out. There must be a rule for SSH. Use `ufw app list` to list all applications.
+
+if not, let’s create it:
+
+✏️ `/etc/ufw/applications.d/openssh-server`:
+
+```bash
+[OpenSSH]
+title=Secure shell server, an rshd replacement
+description=OpenSSH is a free implementation of the Secure Shell protocol.
+ports=<SSH_PORT>/tcp
+```
+
+If it exist, **<ins>be sure to change the SSH port</ins>**. Then add it to the active rules:
 
 ```console
-ufw allow <SSH_PORT>/tcp
+ufw allow in "OpenSSH"
+```
+
+Now, proceed to add other needed rules, either with `ufw allow` or `ufw deny`, on a chosen port. Alternatively, you can use `ufw allow <app>` to allow all traffic on a given application.
+
+```console
+ufw allow in "WWW full"
+ufw allow in "postfix"
+```
+
+⚙️ Finally, enable UFW and check its status:
+
+```console
 ufw enable
 ufw status
 ```
 
-Now, proceed to add custom rules, either with `ufw allow` or `ufw deny`, on a chosen port. Alternatively, you can use `ufw allow <app>` to allow all traffic on a given application.
+If you have installed Webhook, let’s make a custom application rule:
 
-Use `ufw app list` to list all applications.
+✏️ `/etc/ufw/applications.d/webhook`
 
-These applications rules are defined in `/etc/ufw/applications.d/`.
-
-```console
-ufw allow in "WWW full"
+```bash
+[Webhook]
+title=Webhook Service
+description=Lightweight configurable tool written that allows you to easily create HTTP endpoints
+ports=<WEBHOOK_PORT>/tcp
 ```
+
+Ufw usually reload after adding a new rule. Check the status, and reload if needed.
 
 **💡 USEFUL TIP**
 
@@ -793,7 +934,7 @@ ufw delete <number>
 ### 8.2.1 Installation
 
 ```console
-apt get install fail2ban
+apt install fail2ban
 ```
 
 To avoid custom rules to be erased by a new update, create a copy of the configuration file.
@@ -806,19 +947,77 @@ cp /etc/fail2ban/jail.conf  /etc/fail2ban/jail.local
 
 ✏️ `/etc/fail2ban/jail.local`
 
-* Under `ssh`:
-  * `port = <SSH_PORT>`
+* Under `[DEFAULT]` section, change / add the following parameters:
+  * `bantime = 5h`
+  * `findtime = 20m`
+  * `maxretry = 5`
+  * `ignoreip = 127.0.0.1/8 ::1`
+  * `banaction = ufw`
+  * `banaction_allports = ufw`
 
-Then, restart the service to load the new configuration.
+* Under `[sshd]`:
+  * `port = <SSH_PORT>`
+  * `enabled = true`
+
+* Under `[POSTFIX]` (if installed):
+  * `port = <SMTP_PORT>`
+  * `enabled = true`
+  * `mode = aggressive`
+
+⚙️ Then, restart the service to load the new configuration and check its status.
 
 ```console
 systemctl restart fail2ban
+fail2ban-client status
+fail2ban-client status sshd
 ```
+
+⚙️ If everything works fine, enable the service at startup:
+
+```console
+systemctl enable fail2ban.service
+```
+
+### 8.2.3 Custom filters
+
+If you want to use custom filters with fail2ban it's possible by creating new files in `/etc/fail2ban/filter.d/`.
 
 # 9 FTP
 
 # 10 Services
 
-## 10.1 Monosnap (for screenshots)
+## 10.1 Screenshot app (Monosnap, ShareX, etc.)
+
+The point here is to define an access for a screenshot app to upload files in a specific directory via sftp.
+
+Start by creating a new user:
+
+```console
+adduser screenshot
+```
+
+Let’s allow the user to connect to ssh with a password. Edit the ssh config file and add the following at the end:
+
+✏️ `/etc/ssh/sshd_config`
+
+```bash
+# Example of overriding settings on a per-user basis
+Match User screenshot
+	PasswordAuthentication yes
+```
+
+⚙️ Restart ssh
+
+```console
+service ssh restart
+```
+
+Now you just need to give the user access to the directory where the files will be uploaded:
+
+```console
+chown -R screenshot:screenshot /path/to/folder/
+```
 
 ## 10.2 VPN
+
+## 10.3 Auto saves via FTP
