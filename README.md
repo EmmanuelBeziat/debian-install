@@ -829,6 +829,8 @@ systemctl enable mywebhook
 systemctl start mywebhook
 ```
 
+Every change made will be automatically taken in account, so you don’t have to reload the configuration manually like apache or nginx.
+
 **[💡 Documentation (github.com/adnanh/webhook/discussions/562)](https://github.com/adnanh/webhook/discussions/562)**
 
 # 7 Mail server
