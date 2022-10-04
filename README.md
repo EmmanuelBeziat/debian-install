@@ -843,10 +843,10 @@ First, you need to create a DNS record for your domain.
 @ 86400 IN MX 10 yourdomain.com
 ```
 
-You can also create a DNS record for SPF. For example:
+You can also create a DNS record for SPF. For example, with google services:
 
 ```
-@ 10800 IN TXT "v=spf1 +mx +a +ip4:<YOUR_IP> ~all"
+@ 10800 IN TXT "v=spf1 +mx +a +ip4:<YOUR_IP> include:_spf.google.com ?all"
 ```
 
 ## 7.1 Postfix
@@ -997,6 +997,7 @@ A few tools to test your mail configuration:
 * The commands `dig TXT yourdomain` to check your SPF entry, and `dig contact._domainkey.yourdomain.com TXT` to check your DKIM.
 * [DKIMcore](https://dkimcore.org/c/keycheck)
 * [Google Admin Tookbox CheckMX](https://toolbox.googleapps.com/apps/checkmx/)
+* [MXToolbox](https://mxtoolbox.com/SuperTool.aspx)
 
 # 8 Security
 
