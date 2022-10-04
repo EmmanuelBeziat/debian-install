@@ -843,10 +843,10 @@ First, you need to create a DNS record for your domain.
 @ 86400 IN MX 10 yourdomain.com
 ```
 
-You can also create a DNS record for SPF. For example, with google services:
+You can also create a DNS record for SPF. For example:
 
 ```
-@ 10800 IN TXT "v=spf1 +mx +a +ip4:<YOUR_IP> include:_spf.google.com ~all"
+@ 10800 IN TXT "v=spf1 +mx +a +ip4:<YOUR_IP> ~all"
 ```
 
 ## 7.1 Postfix
