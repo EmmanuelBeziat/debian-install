@@ -835,6 +835,20 @@ Every change made will be automatically taken in account, so you don’t have to
 
 # 7 Mail server
 
+This configuration will create a forwarding system to any regular mail service (like gmail).
+
+First, you need to create a DNS record for your domain.
+
+```
+@ 86400 IN MX 10 yourdomain.com
+```
+
+You can also create a DNS record for SPF. For example, with google services:
+
+```
+@ 10800 IN TXT "v=spf1 +mx +a +ip4:<YOUR_IP> include:_spf.google.com ~all"
+```
+
 ## 7.1 Postfix
 
 Install Postfix (duh).
@@ -891,6 +905,98 @@ hello@<DOMAIN> <HELLO_EMAIL>
 postmap /etc/postfix/virtual
 systemctl restart postfix
 ```
+
+## 7.2 DKIM
+
+DKIM is a signature authentification for mailing. It prevent mails from ending into spam folders.
+
+```console
+apt install opendkim opendkim-tools
+```
+
+Let’s configure the file opendkim.conf file, by adding this at the end:
+
+✏️ `/etc/opendkim.conf`
+
+```bash
+AutoRestart             Yes
+AutoRestartRate         10/1h
+UMask                   002
+Syslog                  yes
+SyslogSuccess           Yes
+LogWhy                  Yes
+
+Canonicalization        relaxed/simple
+
+ExternalIgnoreList      refile:/etc/opendkim/TrustedHosts
+InternalHosts           refile:/etc/opendkim/TrustedHosts
+KeyTable                refile:/etc/opendkim/KeyTable
+SigningTable            refile:/etc/opendkim/SigningTable
+
+Mode                    sv
+PidFile                 /var/run/opendkim/opendkim.pid
+SignatureAlgorithm      rsa-sha256
+
+UserID                  opendkim:opendkim
+
+Socket                  inet:12301@localhost
+```
+
+Then create the folders:
+
+```bash
+mkdir /etc/opendkim
+mkdir /etc/opendkim/keys
+```
+
+> 🔺In the next steps, "mail" is going to be a reference to the selector. In this example, the target mail address would be `mail@yourdomain.com`. It could be changed to anything, but be sure to keep the selector of your choice and use it in replacement for `mail` in every step.
+
+And finally, each configuration files:
+
+✏️ `/etc/opendkim/TrustedHosts`
+
+```bash
+127.0.0.1
+localhost
+192.168.0.1/24
+*.yourdomain.com
+```
+
+✏️ `/etc/opendkim/SigningTable`
+
+```bash
+*@yourdomain.com mail._domainkey.yourdomain.com
+```
+
+Next step is generating a key pair:
+
+```console
+cd /etc/opendkim/keys
+mkdir yourdomain.com
+cd yourdomain.com
+opendkim-genkey -s mail -d yourdomain.com
+```
+This will generate `mail.private` and `mail.txt`, which contains the public key you need to note.
+
+Now restart opendkim to reload the configuration:
+
+```console
+systemctl restart opendkim
+
+Then, you need to create a new DNS record.
+
+```
+mail._domainkey 10800 IN TXT "v=DKIM1; k=rsa; p=<YOUR_PUBLICKEY>"
+```
+## 7.3 DMARC
+
+## 7.4 Testing
+
+A few tools to test your mail configuration:
+
+* The commands `dig TXT yourdomain` to check your SPF entry, and `dig contact._domainkey.yourdomain.com TXT` to check your DKIM.
+* [DKIMcore](https://dkimcore.org/c/keycheck)
+* [Google Admin Tookbox CheckMX](https://toolbox.googleapps.com/apps/checkmx/)
 
 # 8 Security
 
