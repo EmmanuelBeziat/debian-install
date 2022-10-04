@@ -906,7 +906,62 @@ postmap /etc/postfix/virtual
 systemctl restart postfix
 ```
 
-## 7.2 DKIM
+## 7.2 Spamassassin
+
+![SpamAssassin](https://spamassassin.apache.org/images/spamassassin-logobar.png)
+
+Start by installing Spamassassin.
+
+```console
+apt install spamassassin
+```
+
+Then, we need to create a user and a group:
+
+```console
+adduser spamassassin
+addgroupe spamassassin
+```
+
+Edit the configuration file:
+
+✏️ `/etc/default/spamassassin`
+
+```bash
+ENABLED=1
+OPTIONS="--username spamassassin --nouser-config --max-children 2 --helper-home-dir ${SAHOME} --socketowner=spamassassin --socketgroup=spamassassin --socketmode=0660"
+PIDFILE="/var/run/spamassassin/spamd.pid"
+CRON=1
+```
+* **[📝 Example file: Spamassassin sample](samples/etc/spamassassin/config.md)**
+
+## 7.2.2 Configure with Postfix
+
+✏️ `/etc/postfix/master.cf`
+
+Replace line `smtp`:
+
+```bash
+smtp inet n - - - - smtpd -o content_filter=spamassassin
+```
+
+At the end, add:
+
+```bash
+spamassassin unix - n n - - pipe
+user=spamassassin argv=/usr/bin/spamc -f -e /usr/sbin/sendmail -oi -f ${sender} ${recipient}
+```
+
+Reload configuration by restarting:
+
+```bash
+systemctl restart spamassassin
+systemctl restart postfix
+```
+
+**[💡 Documentation (https://spamassassin.apache.org/)](https://spamassassin.apache.org/)**
+
+## 7.3 DKIM
 
 DKIM is a signature authentification for mailing. It prevent mails from ending into spam folders.
 
@@ -949,7 +1004,7 @@ mkdir /etc/opendkim
 mkdir /etc/opendkim/keys
 ```
 
-> 🔺In the next steps, "mail" is going to be a reference to the selector. In this example, the target mail address would be `mail@yourdomain.com`. It could be changed to anything, but be sure to keep the selector of your choice and use it in replacement for `mail` in every step.
+> 🔺In the next steps, `mail` is going to be a reference to the selector. In this example, the target mail address would be `mail@yourdomain.com`. It could be changed to anything, but be sure to keep the selector of your choice and use it in replacement for `mail` in every step.
 
 And finally, each configuration files:
 
@@ -982,15 +1037,45 @@ Now restart opendkim to reload the configuration:
 
 ```console
 systemctl restart opendkim
+```
 
 Then, you need to create a new DNS record.
 
 ```
 mail._domainkey 10800 IN TXT "v=DKIM1; k=rsa; p=<YOUR_PUBLICKEY>"
 ```
-## 7.3 DMARC
 
-## 7.4 Testing
+## 7.4 DMARC
+
+```console
+apt install opendmarc
+```
+
+✏️ `/etc/opendmarc.conf`
+
+```bash
+Socket inet:54321@localhost
+```
+
+✏️ `/etc/postfix/main.cf`
+
+```
+smtpd_milters = inet:localhost:12301 inet:localhost:54321
+non_smtpd_milters = inet:localhost:12301 inet:localhost:54321
+```
+
+```console
+systemctl restart opendmarc
+systemctl restart postfix
+```
+
+DNS:
+
+```console
+_dmarc.yourdomain.com 3600 IN TXT "v=DMARC1;p=quarantine;pct=100;rua=mailto:youradress@yourdomain.com;ruf=mailto:forensik@yourdomain.com;adkim=s;aspf=r"
+```
+
+## 7.5 Testing
 
 A few tools to test your mail configuration:
 
@@ -998,6 +1083,7 @@ A few tools to test your mail configuration:
 * [DKIMcore](https://dkimcore.org/c/keycheck)
 * [Google Admin Tookbox CheckMX](https://toolbox.googleapps.com/apps/checkmx/)
 * [MXToolbox](https://mxtoolbox.com/SuperTool.aspx)
+* [MailTester](https://www.mail-tester.com/)
 
 # 8 Security
 
