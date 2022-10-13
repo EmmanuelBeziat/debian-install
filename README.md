@@ -932,6 +932,8 @@ CRON=1
 ```
 * **[📝 Example file: Spamassassin sample](samples/etc/spamassassin/config.md)**
 
+Lastly, create a file named `spamassassin` in `/var/spool/postfix/private`, and give it the owner postfix (110/117).
+
 ## 7.2.2 Configure with Postfix
 
 ✏️ `/etc/postfix/master.cf`
