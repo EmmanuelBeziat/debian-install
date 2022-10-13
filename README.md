@@ -713,13 +713,13 @@ Create SSL certificates for virtualhosts.
 **[💡 Documentation (eff-certbot.readthedocs.io)](https://eff-certbot.readthedocs.io/en/stable/using.html)**
 
 ```console
-apt install -y certbot
+apt install -y certbot python3-certbot-nginx
 ```
 
 Simply add a new domain:
 
 ```console
-certbot certonly --nginx --webroot -w /var/www/mywebsite/ -d mywebsite.com -d www.mywebsite.com
+certbot --nginx -w /var/www/mywebsite/ -d mywebsite.com -d www.mywebsite.com
 ```
 
 If, at any point, this certificate needs to be expanded to include a new domain, you can use the expand command:
@@ -920,7 +920,6 @@ Then, we need to create a user and a group:
 
 ```console
 adduser spamassassin
-addgroupe spamassassin
 ```
 
 Edit the configuration file:
@@ -928,9 +927,7 @@ Edit the configuration file:
 ✏️ `/etc/default/spamassassin`
 
 ```bash
-ENABLED=1
 OPTIONS="--username spamassassin --nouser-config --max-children 2 --helper-home-dir ${SAHOME} --socketowner=spamassassin --socketgroup=spamassassin --socketmode=0660"
-PIDFILE="/var/run/spamassassin/spamd.pid"
 CRON=1
 ```
 * **[📝 Example file: Spamassassin sample](samples/etc/spamassassin/config.md)**
@@ -966,7 +963,7 @@ systemctl restart postfix
 DKIM is a signature authentification for mailing. It prevent mails from ending into spam folders.
 
 ```console
-apt install opendkim opendkim-tools
+apt install opendkim opendkim-tools spamass-milter
 ```
 
 Let’s configure the file opendkim.conf file, by adding this at the end:
@@ -976,7 +973,7 @@ Let’s configure the file opendkim.conf file, by adding this at the end:
 ```bash
 AutoRestart             Yes
 AutoRestartRate         10/1h
-UMask                   002
+UMask                   007
 Syslog                  yes
 SyslogSuccess           Yes
 LogWhy                  Yes
@@ -989,7 +986,7 @@ KeyTable                refile:/etc/opendkim/KeyTable
 SigningTable            refile:/etc/opendkim/SigningTable
 
 Mode                    sv
-PidFile                 /var/run/opendkim/opendkim.pid
+PidFile                 /run/opendkim/opendkim.pid
 SignatureAlgorithm      rsa-sha256
 
 UserID                  opendkim:opendkim
@@ -1004,23 +1001,44 @@ mkdir /etc/opendkim
 mkdir /etc/opendkim/keys
 ```
 
+✏️ `/etc/default/openkimd`
+
+```bash
+smtpd_milters = unix:/spamass/spamass.sock, inet:localhost:12301
+non_smtpd_milters = unix:/spamass/spamass.sock, inet:localhost:12301
+```
+
 > 🔺In the next steps, `mail` is going to be a reference to the selector. In this example, the target mail address would be `mail@yourdomain.com`. It could be changed to anything, but be sure to keep the selector of your choice and use it in replacement for `mail` in every step.
 
 And finally, each configuration files:
 
 ✏️ `/etc/opendkim/TrustedHosts`
 
-```bash
+```console
 127.0.0.1
 localhost
 192.168.0.1/24
 *.yourdomain.com
 ```
 
+✏️ `/etc/opendkim/KeyTable`
+
+```console
+mail._domainkey.yourdomain.com yourdomain.com:mail:/etc/opendkim/keys/yourdomain.com/mail.private
+```
+
 ✏️ `/etc/opendkim/SigningTable`
 
-```bash
+```console
 *@yourdomain.com mail._domainkey.yourdomain.com
+```
+
+When using spamassassin, change the option in spamass-milter:
+
+✏️ `/etc/default/spamass-milter`
+
+```bash
+OPTIONS="-u spamass-milter -i 127.0.0.1 -m -I -- --socket=/var/run/spamassassin/spamd.sock"
 ```
 
 Next step is generating a key pair:
@@ -1032,6 +1050,12 @@ cd yourdomain.com
 opendkim-genkey -s mail -d yourdomain.com
 ```
 This will generate `mail.private` and `mail.txt`, which contains the public key you need to note.
+
+You need to set the owner on the private file.
+
+```console
+chown opendkim:opendkim mail.private
+```
 
 Now restart opendkim to reload the configuration:
 
