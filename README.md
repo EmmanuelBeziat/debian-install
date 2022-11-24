@@ -544,6 +544,24 @@ PM2 is a production process manager for Node.js applications with a built-in loa
 npm install pm2 -g
 ```
 
+Once it has been started, we need to make sure it restart automatically with each reboot.
+
+```console
+pm2 startup
+```
+
+When a process is started with pm2, save a list of currently active processes so it’s restored on reboot.
+
+```console
+pm2 save
+```
+
+If needed, a save can be loaded manually.
+
+```console
+pm2 restore
+```
+
 # 4 Databases
 
 ## 4.1 MariaDB
