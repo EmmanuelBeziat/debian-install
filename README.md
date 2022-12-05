@@ -855,6 +855,8 @@ Every change made will be automatically taken in account, so you don’t have to
 
 This configuration will create a forwarding system to any regular mail service (like gmail).
 
+Configure a full mail server is a pain in the ass, I highly recommand to check out [this whole guide from workaround.org](https://workaround.org/bullseye/)
+
 First, you need to create a DNS record for your domain.
 
 ```
