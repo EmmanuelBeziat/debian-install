@@ -443,7 +443,7 @@ apt-cache policy php
 If everything is reay, install the version of php you need, then check if it's installed correctly.
 
 ```console
-apt install php8.1 php8.1-opcache libapache2-mod-php8.1 php8.1-mysql php8.1-curl php8.1-gd php8.1-intl php8.1-mbstring php8.1-xml php8.1-zip php8.1-fpm php8.1-readline php8.1-xml
+apt install php8.2 php8.2-opcache libapache2-mod-php8.2 php8.2-mysql php8.2-curl php8.2-gd php8.2-intl php8.2-mbstring php8.2-xml php8.2-zip php8.2-fpm php8.2-readline php8.2-xml
 php -v
 ```
 
@@ -459,7 +459,7 @@ Add a mod fof factcgi in apache.
 	AddType application/x-httpd-fastphp .php
 	Action application/x-httpd-fastphp /php-fcgi
 	Alias /php-fcgi /usr/lib/cgi-bin/php-fcgi
-	FastCgiExternalServer /usr/lib/cgi-bin/php-fcgi -socket /run/php/php8.1-fpm.sock -pass-header Authorization
+	FastCgiExternalServer /usr/lib/cgi-bin/php-fcgi -socket /run/php/php8.2-fpm.sock -pass-header Authorization
 
 	<Directory /usr/lib/cgi-bin>
 		Require all granted
@@ -473,12 +473,12 @@ And enable it.
 a2enmod fastcgi
 ```
 
-Enable the php8.1-fpm service.
+Enable the php8.2-fpm service.
 
 ```console
 a2enmod proxy_fcgi setenvif
-a2enconf php8.1-fpm
-a2dismod php8.1
+a2enconf php8.2-fpm
+a2dismod php8.2
 ```
 
 ⚙️ Then restart Apache2.
@@ -740,10 +740,10 @@ Simply add a new domain:
 certbot --nginx -w /var/www/mywebsite/ -d mywebsite.com -d www.mywebsite.com
 ```
 
-If, at any point, this certificate needs to be expanded to include a new domain, you can use the expand command:
+If, at any point, this certificate needs to be expanded to include a new domain, you can use the --cert-name command (the expand command would create a -0001 version):
 
 ```console
-certbot --expand -d mywebsite,www.mywebsite.com,xyz.mywebsite.com
+certbot --cert-name mywebsite.com -d mywebsite.com,www.mywebsite.com,xyz.mywebsite.com
 ```
 
 Renewal should be enabled by default.
