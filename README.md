@@ -737,7 +737,7 @@ apt install -y certbot python3-certbot-nginx
 Simply add a new domain:
 
 ```console
-certbot --nginx -w /var/www/mywebsite/ -d mywebsite.com -d www.mywebsite.com
+certbot certonly --webroot -w /var/www/mywebsite/ -d mywebsite.com -d www.mywebsite.com
 ```
 
 If, at any point, this certificate needs to be expanded to include a new domain, you can use the --cert-name command (the expand command would create a -0001 version):
