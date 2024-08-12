@@ -846,7 +846,7 @@ Prepare the general config file.
 
 ✏️ `/usr/share/hooks/hooks.json`
 
-* **[📝 Example file](samples/hooks/hooks.json)**
+* **[📝 Example file](samples/hooks/hooks.md)**
 
 Add the script to be executed by the hooks
 
