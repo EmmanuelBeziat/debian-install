@@ -489,7 +489,7 @@ systemctl restart nginx
 
 ### 3.3.1 Installation
 
-To use php 8, a third party repository is needed. If you want to stick with php 7.4, ignore the first steps and replace "8.1" by "7.4".
+To use php 8, a third party repository is needed. If you want to stick with php 7.4, ignore the first steps and replace "8.3" by "7.4".
 
 ```console
 apt -y install apt-transport-https lsb-release ca-certificates curl wget
@@ -507,7 +507,7 @@ apt-cache policy php
 If everything is reay, install the version of php you need, then check if it's installed correctly.
 
 ```console
-apt install php8.2 php8.2-opcache libapache2-mod-php8.2 php8.2-mysql php8.2-curl php8.2-gd php8.2-intl php8.2-mbstring php8.2-xml php8.2-zip php8.2-fpm php8.2-readline php8.2-xml
+apt install php8.3 php8.3-opcache libapache2-mod-php8.3 php8.3-mysql php8.3-curl php8.3-gd php8.3-intl php8.3-mbstring php8.3-xml php8.3-zip php8.3-fpm php8.3-readline php8.3-xml
 php -v
 ```
 
@@ -523,7 +523,7 @@ Add a mod fof factcgi in apache.
 	AddType application/x-httpd-fastphp .php
 	Action application/x-httpd-fastphp /php-fcgi
 	Alias /php-fcgi /usr/lib/cgi-bin/php-fcgi
-	FastCgiExternalServer /usr/lib/cgi-bin/php-fcgi -socket /run/php/php8.2-fpm.sock -pass-header Authorization
+	FastCgiExternalServer /usr/lib/cgi-bin/php-fcgi -socket /run/php/php8.3-fpm.sock -pass-header Authorization
 
 	<Directory /usr/lib/cgi-bin>
 		Require all granted
@@ -537,12 +537,12 @@ And enable it.
 a2enmod fastcgi
 ```
 
-Enable the php8.2-fpm service.
+Enable the php8.3-fpm service.
 
 ```console
 a2enmod proxy_fcgi setenvif
-a2enconf php8.2-fpm
-a2dismod php8.2
+a2enconf php8.3-fpm
+a2dismod php8.3
 ```
 
 ⚙️ Then restart Apache2.
@@ -662,7 +662,7 @@ mysql -u root -p
 
 MongoDB is a source-available cross-platform document-oriented database program. Classified as a NoSQL database program, MongoDB uses JSON-like documents with optional schemas. MongoDB is developed by MongoDB Inc. and licensed under the Server Side Public License (SSPL).
 
-**[💡 Documentation (mongodb.com)](https://docs.mongodb.com/manual/tutorial/getting-started/)**
+**[💡 Documentation (mongodb.com)](https://www.mongodb.com/docs/manual/)**
 
 ### 4.2.1 Install
 
@@ -676,10 +676,10 @@ MongoDB must be added to package manager, and require a pgp key to do so.
 /etc/apt/trusted.gpg.d
 
 ```console
-wget -qO - https://www.mongodb.org/static/pgp/server-4.4.asc | apt-key add -
-echo "deb http://repo.mongodb.org/apt/debian buster/mongodb-org/4.4 main" | tee /etc/apt/sources.list.d/mongodb-org-4.4.list
+curl -fsSL https://www.mongodb.org/static/pgp/server-7.0.asc | \ gpg -o /usr/share/keyrings/mongodb-server-7.0.gpg \ --dearmor
+echo "deb [ signed-by=/usr/share/keyrings/mongodb-server-7.0.gpg ] http://repo.mongodb.org/apt/debian bullseye/mongodb-org/7.0 main" | tee /etc/apt/sources.list.d/mongodb-org-7.0.list
 apt update
-apt install -y mongodb-org=4.4.10 mongodb-org-server=4.4.10 mongodb-org-shell=4.4.10 mongodb-org-mongos=4.4.10 mongodb-org-tools=4.4.10
+apt install -y mongodb-org
 ```
 
 ### 4.2.2 Configure
