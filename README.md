@@ -792,10 +792,18 @@ Create SSL certificates for virtualhosts.
 
 ## 5.1 Certbot
 
+Preliminary, it is needed to install [the package manager snap (snapcraft.io)](https://snapcraft.io/docs/installing-snap-on-debian), as it’s now the preferred way of installing certbot.
+
+```console
+apt install snapd
+snap install snapd
+```
+
 **[💡 Documentation (eff-certbot.readthedocs.io)](https://eff-certbot.readthedocs.io/en/stable/using.html)**
 
 ```console
-apt install -y certbot python3-certbot-nginx
+snap install --classic certbot
+ln -s /snap/bin/certbot /usr/bin/certbot
 ```
 
 Simply add a new domain:
@@ -846,7 +854,7 @@ Prepare the general config file.
 
 ✏️ `/usr/share/hooks/hooks.json`
 
-* **[📝 Example file](samples/hooks/hooks.json)**
+* **[📝 Example file](samples/hooks/hooks.md)**
 
 Add the script to be executed by the hooks
 
