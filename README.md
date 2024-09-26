@@ -9,6 +9,7 @@ If help is needed for one of the following commands, use https://explainshell.co
 
 - [0 Preliminary stuff](#0-preliminary-stuff)
   - [0.1 System update](#01-system-update)
+  - [0.2 System upgrade](#02-system-upgrade)
 - [1 SSH Setup](#1-ssh-setup)
   - [1.1 Add authorized keys](#11-add-authorized-keys)
   - [1.2 ssh config](#12-ssh-config)
@@ -81,6 +82,57 @@ apt autoremove
 apt autoclean
 ```
 
+## 0.2 System upgrade
+
+If needed, upgrade the debian version.
+
+Update the source-list file:
+
+✏️ `/etc/apt/sources.list`
+
+Change the sources by upgrading the version name (For example, **bullseye** to **bookworm**)
+
+```
+# deb http://mirrors.online.net/debian bookworm main
+
+deb http://mirrors.online.net/debian bookworm main non-free contrib
+deb-src http://mirrors.online.net/debian bookworm main non-free contrib
+
+deb http://security.debian.org/debian-security bookworm-security main contrib non-free
+deb-src http://security.debian.org/debian-security bookworm-security main contrib non-free
+```
+
+Then update packages.
+
+```console
+apt update
+apt upgrade --without-new-pkgs
+apt full-upgrade
+dpkg -l 'linux-image*' | grep ^ii | grep -i meta
+apt install
+```
+
+Then, reboot the system.
+
+```console
+reboot
+```
+
+When back online, purge obsolete packages.
+
+```console
+apt purge '~c'
+apt purge '~o'
+apt autoremove
+apt autoclean
+```
+
+Check the version.
+
+```console
+lsb_release -a
+```
+
 # 1 SSH Setup
 
 ## 1.1 Add authorized keys
@@ -90,7 +142,7 @@ apt autoclean
 If you need to generate a key, you can use PuTTyGen or the following command:
 
 ```console
-ssh-keygen -t rsa -b 4096 -C "your_email@example.com"
+ssh-keygen -t ed25519 -C "your_email@example.com"
 ```
 
 ## 1.2 ssh config
