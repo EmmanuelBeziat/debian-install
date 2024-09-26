@@ -601,7 +601,7 @@ a2dismod php8.3
 
 Once everything is working, configure your php instance.
 
-✏️ `/etc/php/8.1/fpm/php.ini`
+✏️ `/etc/php/8.3/fpm/php.ini`
 
 * `max_execution_time = 300`
 * `post_max_size = 512M`
