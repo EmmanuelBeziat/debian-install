@@ -95,11 +95,11 @@ Change the sources by upgrading the version name (For example, **bullseye** to *
 ```
 # deb http://mirrors.online.net/debian bookworm main
 
-deb http://mirrors.online.net/debian bookworm main non-free contrib
-deb-src http://mirrors.online.net/debian bookworm main non-free contrib
+deb http://mirrors.online.net/debian bookworm main non-free-firmware
+deb-src http://mirrors.online.net/debian bookworm main non-free-firmware
 
-deb http://security.debian.org/debian-security bookworm-security main contrib non-free
-deb-src http://security.debian.org/debian-security bookworm-security main contrib non-free
+deb http://security.debian.org/debian-security bookworm-security main non-free-firmware
+deb-src http://security.debian.org/debian-security bookworm-security main non-free-firmware
 ```
 
 Then update packages.
