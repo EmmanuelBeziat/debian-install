@@ -1421,4 +1421,8 @@ chown -R screenshot:screenshot /path/to/folder/
 
 ## 10.2 VPN
 
+```console
+apt install openvpn
+```
+
 ## 10.3 Auto saves via FTP
