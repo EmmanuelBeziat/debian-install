@@ -1559,4 +1559,6 @@ The script will add a first user. To add another one, reexecute the script and s
 ./openvpn-install.sh
 ```
 
+Configuration files (`*.ovpn`) are written in `/root/`.
+
 ## 10.3 Auto saves via FTP
