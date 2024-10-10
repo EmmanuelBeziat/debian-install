@@ -1,6 +1,7 @@
 ```nginx
 user www-data;
 worker_processes auto;
+worker_rlimit_nofile 65535;
 
 error_log /dev/null;
 pid /run/nginx.pid;

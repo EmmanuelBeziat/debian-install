@@ -317,7 +317,7 @@ AddDefaultCharset UTF-8
 # vim: syntax=apache ts=4 sw=4 sts=4 sr noet
 ```
 
-✏️ `/etc/apache2/conf-available/javascrip-common.conf`
+✏️ `/etc/apache2/conf-available/javascript-common.conf`
 ```apache
 Alias /javascript /usr/share/javascript/
 
@@ -375,7 +375,12 @@ Nginx will be used as a reverse-proxy for Apache and NodeJS. It will operate sta
 
 ### 3.2.1 Install
 
+By default, the Nginx version is tied to the Debian release. To force upgrade to the latest version, add the repository to the source list.
+
 ```console
+curl -fsSL https://nginx.org/keys/nginx_signing.key | tee /etc/apt/trusted.gpg.d/nginx_signing.asc
+echo "deb https://nginx.org/packages/mainline/debian/ $(lsb_release -cs) nginx" | tee /etc/apt/sources.list.d/nginx.list
+apt update
 apt install -y nginx
 ```
 
@@ -428,7 +433,7 @@ add_header X-Content-Type-Options nosniff;
 add_header Cache-Control "public, immutable";
 add_header Strict-Transport-Security "max-age=500; includeSubDomains; preload;";
 add_header Referrer-Policy origin-when-cross-origin;
-add_header Content-Security-Policy "default-src 'self'; connect-src 'self' http: https: blob: *.github.com api.github.com *.youtube.com; img-src 'self' data: http: https: blob: *.gravatar.com youtube.com www.youtube.com *.youtube.com; script-src 'self' 'unsafe-inline' 'unsafe-eval' http: https: blob: www.google-analytics.com *.googleapis.com *.googlesynddication.com *.doubleclick.net youtube.com www.youtube.com *.youtube.com; style-src 'self' 'unsafe-inline' http: https: blob: *.googleapis.com youtube.com www.youtube.com *.youtube.com; font-src 'self' data: http: https: blob: *.googleapis.com *.googleuservercontent.com youtube.com www.youtube.com; child-src http: https: blob: youtube.com www.youtube.com; base-uri 'self'; frame-ancestors 'self'";
+add_header Content-Security-Policy "default-src 'self'; connect-src 'self' http: https: blob: ws: *.github.com api.github.com *.youtube.com; img-src 'self' data: http: https: blob: *.gravatar.com youtube.com www.youtube.com *.youtube.com; script-src 'self' 'unsafe-inline' 'unsafe-eval' http: https: blob: www.google-analytics.com *.googleapis.com *.googlesynddication.com *.doubleclick.net youtube.com www.youtube.com *.youtube.com; style-src 'self' 'unsafe-inline' http: https: blob: *.googleapis.com youtube.com www.youtube.com *.youtube.com; font-src 'self' data: http: https: blob: *.googleapis.com *.googleuservercontent.com youtube.com www.youtube.com; child-src http: https: blob: youtube.com www.youtube.com; base-uri 'self'; frame-ancestors 'self'";
 ```
 
 ✏️ `/etc/nginx/conf.d/proxy.conf`
@@ -446,6 +451,8 @@ proxy_read_timeout		90;
 proxy_buffer_size		16k;
 proxy_buffers			32	16k;
 proxy_busy_buffers_size		64k;
+
+proxy_hide_header      Upgrade;
 ```
 
 ✏️ `/etc/nginx/conf.d/webmanifest.conf`
@@ -470,7 +477,7 @@ map $sent_http_content_type $expires {
 }
 ```
 
-✏️ `/etc/nginx/snippets/favicon_error.conf`
+✏️ `/etc/nginx/snippets/favicon-error.conf`
 ```nginx
 location = /favicon.ico {
     access_log off;
@@ -596,7 +603,7 @@ apt install php8.3 php8.3-opcache libapache2-mod-php8.3 php8.3-mysql php8.3-curl
 php -v
 ```
 
-Add a mod fof factcgi in apache.
+Add a mod for factcgi in apache.
 
 ✏️ `/etc/apache2/mods-enabled/fastcgi.conf`
 
