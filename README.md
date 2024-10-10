@@ -17,6 +17,7 @@ If help is needed for one of the following commands, use https://explainshell.co
   - [2.1 Tools](#21-tools)
     - [2.1.1 git](#211-git)
     - [2.1.2 vim](#212-vim)
+	- [2.1.3 dos2unix](#213-dos2unix)
   - [2.2 Rsync](#22-rsync)
   - [2.3 Cron](#23-cron)
   - [2.4 Other](#24-other)
@@ -215,6 +216,20 @@ Vim is a free and open-source, screen-based text editor program.
 
 ```console
 apt install vim
+```
+
+## 2.1.3 dos2unix
+
+When transferring files made in windows on the server, it might create errors. Install dos2unix to rewrite faulted files.
+
+```console
+apt install dos2unix
+```
+
+How to use:
+
+```console
+dos2unix /path/to/file
 ```
 
 ## 2.2 Rsync
