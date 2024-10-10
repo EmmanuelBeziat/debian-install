@@ -70,6 +70,8 @@ If help is needed for one of the following commands, use https://explainshell.co
 - [10 Services](#10-services)
   - [10.1 Screenshot app (Monosnap, ShareX, etc.)](#101-screenshot-app-monosnap-sharex-etc)
   - [10.2 VPN](#102-vpn)
+    - [10.2.1 Installation](#1021-installation)
+	- [10.2.2 Add user](#1022-add-users)
   - [10.3 Auto saves via FTP](#103-auto-saves-via-ftp)
 
 # 0 Preliminary stuff
@@ -1490,8 +1492,37 @@ chown -R screenshot:screenshot /path/to/folder/
 
 ## 10.2 VPN
 
+### 10.2.1 Installation
+
+Install OpenVPN
+
 ```console
-apt install openvpn
+curl -O https://raw.githubusercontent.com/Angristan/openvpn-install/master/openvpn-install.sh
+chmod +x openvpn-install.sh
+./openvpn-install.sh
+```
+The script will setup and ask for questions.
+
+Add the ports defined to UFW. For example, with a custom script:
+
+✏️ `/etc/ufw/applications.d/openvpn`
+
+```bash
+[OpenVPN]
+title=OpenVPN Service
+description=Open Source VPN
+ports=1194/udp
+```
+
+```console
+ufw allow in "OpenVPN"
+```
+
+### 10.2.2 Add users
+
+The script will add a first user. To add another one, reexecute the script and select the choice "Add a new user".
+```console
+./openvpn-install.sh
 ```
 
 ## 10.3 Auto saves via FTP
