@@ -954,13 +954,25 @@ ln -s /snap/bin/certbot /usr/bin/certbot
 Simply add a new domain:
 
 ```console
-certbot certonly --webroot -w /var/www/mywebsite/ -d mywebsite.com -d www.mywebsite.com
+certbot --nginx -w /var/www/mywebsite/ -d mywebsite.com -d www.mywebsite.com
+```
+
+This will automatically change the vhost file. To make it manually, use this command:
+
+```console
+certbot certonly --nginx -w /var/www/mywebsite/ -d mywebsite.com -d www.mywebsite.com
 ```
 
 If, at any point, this certificate needs to be expanded to include a new domain, you can use the --cert-name command (the expand command would create a -0001 version):
 
 ```console
 certbot --cert-name mywebsite.com -d mywebsite.com,www.mywebsite.com,xyz.mywebsite.com
+```
+
+And to remove a certificate:
+
+```console
+certbot delete --cert-name mywebsite.com
 ```
 
 Renewal should be enabled by default.
