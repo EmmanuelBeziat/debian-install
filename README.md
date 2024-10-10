@@ -34,6 +34,7 @@ If help is needed for one of the following commands, use https://explainshell.co
   - [3.4 NodeJS](#34-nodejs)
     - [3.4.1 Npm-check-Update](#341-npm-check-update)
     - [3.4.2 PM2](#342-pm2)
+	- [3.4.3 Update Script](#343-update-script)
 - [4 Databases](#4-databases)
   - [4.1 MariaDB](#41-mariadb)
     - [4.1.1 Install](#411-install)
@@ -676,6 +677,59 @@ If needed, a save can be loaded manually.
 
 ```console
 pm2 restore
+```
+
+## 3.4.3 Update script
+
+NVM has an issue: updating the version will not keep your globally installed packages. Here’s a script to make this automatically:
+
+✏️ `/usr/local/bin/node-update`
+```bash
+#!/bin/bash
+
+# Step 1: Save list of global npm packages
+echo "Saving list of global npm packages..."
+GLOBAL_PACKAGES=$(npm list -g --depth=0 --json | jq -r '.dependencies | keys[]')
+
+# Step 2: Save PM2 processes
+echo "Saving PM2 process list..."
+pm2 save
+
+# Step 3: Install latest Node.js via nvm
+echo "Installing the latest Node.js version..."
+nvm install node
+
+# Step 4: Set the latest Node.js version as default
+echo "Setting the latest Node.js version as default..."
+nvm alias default node
+
+# Step 5: Reinstall global npm packages
+echo "Reinstalling global npm packages..."
+for package in $GLOBAL_PACKAGES; do
+  npm install -g "$package"
+done
+
+# Step 6: Reinstall PM2 globally
+echo "Reinstalling PM2..."
+npm install -g pm2
+
+# Step 7: Resurrect PM2 processes
+echo "Resurrecting PM2 processes..."
+pm2 resurrect
+
+echo "Node.js update complete!"
+```
+
+Make it executable:
+
+```console
+chmod +x /usr/local/bin/node-update
+```
+
+To use it, just call:
+
+```console
+node-update
 ```
 
 # 4 Databases
