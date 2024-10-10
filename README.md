@@ -20,6 +20,7 @@ If help is needed for one of the following commands, use https://explainshell.co
 	- [2.1.3 dos2unix](#213-dos2unix)
   - [2.2 Rsync](#22-rsync)
   - [2.3 Cron](#23-cron)
+    - [2.3.1 Usual cron tasks](#231-usual-cron-tasks)
   - [2.4 Other](#24-other)
 - [3 Webserver](#3-webserver)
   - [3.1 Apache2](#31-apache2)
@@ -237,6 +238,20 @@ dos2unix /path/to/file
 ## 2.2 Rsync
 
 ## 2.3 Cron
+
+### 2.3.1 Usual cron tasks
+
+**Remove old logs**
+```console
+crontab -e
+```
+
+```bash
+0 12 * * * /snap/bin/certbot renew --quiet
+0 12 * * * apt update
+0 12 * * * find /var/log -name "*.1" -type f -delete
+0 12 * * * /usr/bin/find /var/log -type f -name '*.log' -mtime +2 -exec rm {} \;
+```
 
 ## 2.4 Other
 
