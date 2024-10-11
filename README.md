@@ -794,11 +794,14 @@ Run secure script to set password, remove test database and disabled remote root
 ```console
 mysql_secure_installation
 ```
+### 4.1.2 Create admin user
 
 Create an admin utilisator for external connections.
 
 ```console
 mysql -u root -p
+CREATE USER 'user'@localhost IDENTIFIED BY 'password';
+GRANT ALL PRIVILEGES ON *.* TO 'user'@localhost IDENTIFIED BY 'password';
 ```
 
 ## 4.2 MongoDB
