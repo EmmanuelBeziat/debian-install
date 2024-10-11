@@ -894,10 +894,10 @@ Alternative to PhpMyAdmin, Adminer is a web-based MySQL management tool. It is a
 **[💡 Documentation (adminer.org)](https://www.adminer.org/)**
 
 ```console
-wget "http://www.adminer.org/latest.php" -O /var/www/emmanuelbeziat/sql/adminer.php
-wget "https://raw.githubusercontent.com/vrana/adminer/master/designs/dracula/adminer.css" -O /var/www/emmanuelbeziat/sql/adminer.css
-chown -R www-data:www-data /var/www/emmanuelbeziat/sql
-chmod -R 755 /var/www/emmanuelbeziat/sql/adminer.php
+wget "http://www.adminer.org/latest.php" -O /var/www/mywebsite/adminer.php
+wget "https://raw.githubusercontent.com/vrana/adminer/master/designs/dracula/adminer.css" -O /var/www/mywebsite/adminer.css
+chown -R www-data:www-data /var/www/mywebsite
+chmod -R 755 /var/www/mywebsite/adminer.php
 ```
 
 To add plugins, create an index file in the same directory:
