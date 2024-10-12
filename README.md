@@ -40,6 +40,7 @@ If help is needed for one of the following commands, use https://explainshell.co
 - [4 Databases](#4-databases)
   - [4.1 MariaDB](#41-mariadb)
     - [4.1.1 Install](#411-install)
+	- [4.1.2 Create admin user](#412-create-admin-user)
   - [4.2 MongoDB](#42-mongodb)
     - [4.2.1 Install](#421-install)
     - [4.2.2 Configure](#422-configure)
@@ -95,11 +96,17 @@ Update the source-list file:
 
 ✏️ `/etc/apt/sources.list`
 
-Change the sources by upgrading the version name (For example, **bullseye** to **bookworm**)
+Change the sources by upgrading the version name.
 
 ```
-# deb http://mirrors.online.net/debian bookworm main
+deb http://mirrors.online.net/debian bullseye main non-free contrib
+deb-src http://mirrors.online.net/debian bullseye main non-free contrib
 
+deb http://security.debian.org/debian-security bullseye-security main contrib non-free
+deb-src http://security.debian.org/debian-security bullseye-security main contrib non-free
+```
+
+```
 deb http://mirrors.online.net/debian bookworm main non-free-firmware
 deb-src http://mirrors.online.net/debian bookworm main non-free-firmware
 
