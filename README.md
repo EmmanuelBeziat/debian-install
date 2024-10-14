@@ -55,13 +55,12 @@ If help is needed for one of the following commands, use https://explainshell.co
 - [7 Mail server](#7-mail-server)
   - [7.1 Postfix](#71-postfix)
     - [7.1.1 Configure Postfix as a Forwarding System Mail](#711-configure-postfix-as-a-forwarding-system-mail)
-  - [7.2 Spamassassin](#72-spamassassin)
-    - [7.2.1 Installation](#721-installation)
-    - [7.2.2 Configure with Postfix](#722-configure-with-postfix)
-    - [7.2.3 Custom filters](#723-custom-filters)
-  - [7.3 DKIM](#73-dkim)
-  - [7.4 DMARC](#74-dmarc)
-  - [7.5 Testing](#75-testing)
+  - [7.2 Dovecot](#72-dovecot)
+  - [7.3 Spamassassin](#73-spamassassin)
+    - [7.3.1 Configure with Postfix](#731-configure-with-postfix)
+  - [7.4 DKIM](#74-dkim)
+  - [7.5 DMARC](#75-dmarc)
+  - [7.6 Testing](#76-testing)
 - [8 Security](#8-security)
   - [8.1 UFW](#81-ufw)
   - [8.2 Fail2ban](#82-fail2ban)
@@ -1165,9 +1164,19 @@ postmap /etc/postfix/virtual
 systemctl restart postfix
 ```
 
-## 7.2 Spamassassin
+## 7.2 Dovecot
+
+Postfix just transfer mails. To have a fully working mailbox, install Dovecot:
+
+```bash
+install dovecot-core dovecot-imapd dovecot-pop3d 
+```
+
+## 7.3 Spamassassin
 
 ![SpamAssassin](https://spamassassin.apache.org/images/spamassassin-logobar.png)
+
+
 
 Start by installing Spamassassin.
 
@@ -1193,7 +1202,7 @@ CRON=1
 
 Lastly, create a file named `spamassassin` in `/var/spool/postfix/private`, and give it the owner postfix (110/117).
 
-## 7.2.2 Configure with Postfix
+## 7.3.1 Configure with Postfix
 
 ✏️ `/etc/postfix/master.cf`
 
@@ -1219,7 +1228,7 @@ systemctl restart postfix
 
 **[💡 Documentation (https://spamassassin.apache.org/)](https://spamassassin.apache.org/)**
 
-## 7.3 DKIM
+## 7.4 DKIM
 
 DKIM is a signature authentification for mailing. It prevent mails from ending into spam folders.
 
@@ -1330,7 +1339,7 @@ Then, you need to create a new DNS record.
 mail._domainkey 10800 IN TXT "v=DKIM1; k=rsa; p=<YOUR_PUBLICKEY>"
 ```
 
-## 7.4 DMARC
+## 7.5 DMARC
 
 ```console
 apt install opendmarc
@@ -1360,7 +1369,7 @@ DNS:
 _dmarc.yourdomain.com 3600 IN TXT "v=DMARC1;p=quarantine;pct=100;rua=mailto:youradress@yourdomain.com;ruf=mailto:forensik@yourdomain.com;adkim=s;aspf=r"
 ```
 
-## 7.5 Testing
+## 7.6 Testing
 
 A few tools to test your mail configuration:
 
