@@ -1169,8 +1169,19 @@ systemctl restart postfix
 Postfix just transfer mails. To have a fully working mailbox, install Dovecot:
 
 ```bash
-install dovecot-core dovecot-imapd dovecot-pop3d 
+install dovecot-core dovecot-imapd dovecot-pop3d dovecot-lmtpd
 ```
+
+### 7.2.1 Using Dovecot with mysql
+
+(Todo)
+
+Start by installing a mysql module for postfix.
+
+```bash
+apt install postfix-mysql
+```
+
 
 ## 7.3 Spamassassin
 
@@ -1370,6 +1381,12 @@ _dmarc.yourdomain.com 3600 IN TXT "v=DMARC1;p=quarantine;pct=100;rua=mailto:your
 ```
 
 ## 7.6 Testing
+
+### 7.6.1 Useful tools
+
+```console
+apt install dnsutils mailutils
+```
 
 A few tools to test your mail configuration:
 
