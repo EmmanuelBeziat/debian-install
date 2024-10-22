@@ -590,7 +590,7 @@ systemctl restart nginx
 To use php 8, a third party repository is needed. If you want to stick with php 7.4, ignore the first steps and replace "8.3" by "7.4".
 
 ```console
-apt -y install apt-transport-https lsb-release ca-certificates curl wget
+apt -y install apt-transport-https lsb-release ca-certificates
 wget -O /etc/apt/trusted.gpg.d/php.gpg https://packages.sury.org/php/apt.gpg
 sh -c 'echo "deb https://packages.sury.org/php/ $(lsb_release -sc) main" > /etc/apt/sources.list.d/php.list'
 ```
@@ -671,7 +671,14 @@ source ~/.profile
 nvm -v
 ```
 
-Then, install the desired version of NodeJS with nvm command:
+Then, install the latest version of NodeJS with nvm command:
+```console
+nvm install node
+nvm use node
+nvm alias node
+```
+
+Or a specific version:
 
 ```console
 nvm ls-remote
