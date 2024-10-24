@@ -309,8 +309,6 @@ Listen 8085
 # <IfModule mod_gnutls.c>
 # 	Listen 443
 # </IfModule>
-
-# vim: syntax=apache ts=4 sw=4 sts=4 sr noet
 ```
 
 ✏️ `/etc/apache2/conf-available/charset.conf`
@@ -319,17 +317,6 @@ Listen 8085
 # In general, it is only a good idea if you know that all your files have this encoding. It will override any encoding given in the files in meta http-equiv or xml encoding tags.
 
 AddDefaultCharset UTF-8
-
-# vim: syntax=apache ts=4 sw=4 sts=4 sr noet
-```
-
-✏️ `/etc/apache2/conf-available/javascript-common.conf`
-```apache
-Alias /javascript /usr/share/javascript/
-
-<Directory "/usr/share/javascript/">
-	Options FollowSymLinks MultiViews
-</Directory>
 ```
 
 ✏️ `/etc/apache2/conf-available/security.conf`
@@ -352,7 +339,7 @@ Alias /javascript /usr/share/javascript/
 **Enable configurations**
 
 ```console
-a2enconf charset  javascrip-common  security
+a2enconf charset security
 ```
 
 **Enable mods**
