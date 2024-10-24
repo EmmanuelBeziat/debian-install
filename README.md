@@ -191,7 +191,7 @@ service ssh restart
 Common tools
 
 ```console
-apt install -y software-properties-common gnupg2 curl wget
+apt install -y software-properties-common gnupg2 curl wget zip unzip dos2unix
 ```
 
 ## 2.1.1 git
@@ -216,6 +216,8 @@ git config --global core.editor "vim"
 ```
 
 **[💡 Documentation (git-scm.com)](https://git-scm.com/book/fr/v2/Personnalisation-de-Git-Configuration-de-Git)**
+
+Add github
 
 ## 2.1.2 vim
 
@@ -985,14 +987,10 @@ ln -s /snap/bin/certbot /usr/bin/certbot
 Simply add a new domain:
 
 ```console
-certbot --nginx -w /var/www/mywebsite/ -d mywebsite.com -d www.mywebsite.com
+certbot certonly --nginx -d mywebsite.com -d www.mywebsite.com -d cdn.mywebsite.com
 ```
 
-This will automatically change the vhost file. To make it manually, use this command:
-
-```console
-certbot certonly --nginx -w /var/www/mywebsite/ -d mywebsite.com -d www.mywebsite.com
-```
+This will automatically change the vhost file. To make it manually, use the command without the `--nginx` flag.
 
 If, at any point, this certificate needs to be expanded to include a new domain, you can use the --cert-name command (the expand command would create a -0001 version):
 
@@ -1557,7 +1555,7 @@ The point here is to define an access for a screenshot app to upload files in a 
 Start by creating a new user:
 
 ```console
-adduser --system --no-create-home screenshot
+adduser --no-create-home screenshot
 ```
 
 Let’s allow the user to connect to ssh with a password. Edit the ssh config file and add the following at the end:
