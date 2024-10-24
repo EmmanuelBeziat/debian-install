@@ -1065,7 +1065,7 @@ chmod +x /usr/share/hooks/mywebsite/deploy.sh
 ⚙️ Run webhook with:
 
 ```console
-/usr/bin/webhook -hooks hooks.json -secure -verbose
+/usr/bin/webhook -hooks /usr/share/hooks/hooks.json -secure -verbose
 ```
 
 ### 6.2.1 Custom service
@@ -1088,7 +1088,7 @@ Description=Webhook Custom Service
 After=network.target
 
 [Service]
-ExecStart=/usr/bin/webhook -hooks=/usr/share/hooks.json -hotreload=true -port=9000 -secure=false -verbose=true -debug=false
+ExecStart=/usr/bin/webhook -hooks=/usr/share/hooks/hooks.json -hotreload=true -port=9000 -secure=false -verbose=true -debug=false
 WorkingDirectory=/opt/webhook
 KillMode=process
 Restart=on-failure
