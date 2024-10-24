@@ -434,7 +434,7 @@ charset_types *;
 ✏️ `/etc/nginx/conf.d/default.conf`
 ```nginx
 upstream apachephp {
-    server <SERVER_IP>:<PORT_APACHE>;
+    server <SERVER_IP>:<APACHE_PORT>;
 }
 
 server {
@@ -481,36 +481,7 @@ add_header X-Content-Type-Options nosniff;
 add_header Cache-Control "max-age=31536000,immutable";
 ```
 
-✏️ `/etc/nginx/snippets/cache.conf`
-```nginx
-add_header Cache-Control "public, no-transform";
-```
-
-✏️ `/etc/nginx/snippets/expires.conf`
-```nginx
-map $sent_http_content_type $expires {
-	default off;
-	text/html epoch;
-	text/css max;
-	application/javascript max;
-	~image/ max;
-}
-```
-
-✏️ `/etc/nginx/snippets/favicon-error.conf`
-```nginx
-location = /favicon.ico {
-    access_log off;
-    log_not_found off;
-}
-location = /robots.txt {
-    return 204;
-    access_log off;
-    log_not_found off;
-}
-```
-
-✏️ `/etc/nginx/snippets/gzip-config.conf`
+✏️ `/etc/nginx/conf.d/gzip.conf`
 ```nginx
 types {
 	application/x-font-ttf           ttf;
@@ -555,6 +526,36 @@ text/x-component
 text/x-cross-domain-policy;
 # text/html is always compressed by gzip module
 # don't compress woff/woff2 as they're compressed already
+```
+
+
+✏️ `/etc/nginx/snippets/cache.conf`
+```nginx
+add_header Cache-Control "public, no-transform";
+```
+
+✏️ `/etc/nginx/snippets/expires.conf`
+```nginx
+map $sent_http_content_type $expires {
+	default off;
+	text/html epoch;
+	text/css max;
+	application/javascript max;
+	~image/ max;
+}
+```
+
+✏️ `/etc/nginx/snippets/favicon-error.conf`
+```nginx
+location = /favicon.ico {
+    access_log off;
+    log_not_found off;
+}
+location = /robots.txt {
+    return 204;
+    access_log off;
+    log_not_found off;
+}
 ```
 
 ✏️ `/etc/nginx/snippets/ssl-config.conf`
@@ -1556,7 +1557,7 @@ The point here is to define an access for a screenshot app to upload files in a 
 Start by creating a new user:
 
 ```console
-adduser screenshot
+adduser --system --no-create-home screenshot
 ```
 
 Let’s allow the user to connect to ssh with a password. Edit the ssh config file and add the following at the end:
