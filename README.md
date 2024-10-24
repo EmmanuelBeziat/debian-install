@@ -395,7 +395,7 @@ By default, the Nginx version is tied to the Debian release. To force upgrade to
 curl -fsSL https://nginx.org/keys/nginx_signing.key | tee /etc/apt/trusted.gpg.d/nginx_signing.asc
 echo "deb https://nginx.org/packages/mainline/debian/ $(lsb_release -cs) nginx" | tee /etc/apt/sources.list.d/nginx.list
 apt update
-apt install -y nginx
+apt install -y nginx nginx-common
 ```
 
 ### 3.2.2 Configuration
