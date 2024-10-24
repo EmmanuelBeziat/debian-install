@@ -832,6 +832,7 @@ Create an admin utilisator for external connections.
 mysql -u root -p
 CREATE USER 'user'@localhost IDENTIFIED BY 'password';
 GRANT ALL PRIVILEGES ON *.* TO 'user'@localhost IDENTIFIED BY 'password';
+FLUSH PRIVILEGES;
 ```
 
 ## 4.2 MongoDB
