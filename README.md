@@ -297,10 +297,31 @@ systemctl enable apache2
 
 ### 3.1.2 Configuration
 
+Let’s start by create a custom set of defined constants.
+
+✏️ `/etc/apache2/conf-custom/constants.conf`
+
+```apache
+Define APACHE_PORT 8085
+```
+
+Then include it in the main configuration file.
+
+✏️ `/etc/apache2/apache2.conf`
+
+```apache
+# Global configuration
+#
+
+include conf-custom/constants.conf
+```
+
+Now, the defined constants can be called within any Apache configuration file.
+
 ✏️ `/etc/apache2/ports.conf`
 ```apache
 # If you just change the port or add more ports here, you will likely also have to change the VirtualHost statement in /etc/apache2/sites-enabled/000-default.conf
-Listen 8085
+Listen ${APACHE_PORT}
 
 # <IfModule ssl_module>
 # 	Listen 443
