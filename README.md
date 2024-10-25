@@ -1097,7 +1097,7 @@ Restart=on-failure
 WantedBy=multi-user.target
 ```
 
-Now, it needs to be linked in `/etc/systemd/system/`:
+Now, it needs to be linked in `/etc/systemd/system/`. Be sure not to call it just "webhook.service", because it would conflict with another service:
 
 ```console
 ln -s /opt/webhook/webhook.service /etc/systemd/system/mywebhook.service
