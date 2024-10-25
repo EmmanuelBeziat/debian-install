@@ -1458,7 +1458,13 @@ Now, proceed to add other needed rules, either with `ufw allow` or `ufw deny`, o
 
 ```console
 ufw allow in "WWW full"
-ufw allow in "postfix"
+ufw allow in "Mail submission"
+ufw allow in "SMTP"
+ufw allow in "SMTPS"
+ufw allow in "IMAP"
+ufw allow in "IMAPS
+ufw allow in "POP3"
+ufw allow in "POP3S"
 ```
 
 ⚙️ Finally, enable UFW and check its status:
@@ -1468,7 +1474,7 @@ ufw enable
 ufw status
 ```
 
-If you have installed Webhook, let’s make a custom application rule:
+If you have installed Webhook, let’s make a custom application rule (but it's not necessary if nginx receives the request and pass it directly):
 
 ✏️ `/etc/ufw/applications.d/webhook`
 
