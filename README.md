@@ -1034,7 +1034,7 @@ go version
 **[💡 Documentation (github.com/adnanh)](https://github.com/adnanh/webhook)**
 
 ```console
-apt install -y webhook
+snap install webhook
 ```
 
 Prepare the general config file.
@@ -1088,7 +1088,7 @@ Description=Webhook Custom Service
 After=network.target
 
 [Service]
-ExecStart=/usr/bin/webhook -hooks=/usr/share/hooks/hooks.json -hotreload=true -port=9000 -secure=false -verbose=true -debug=false
+ExecStart=/usr/bin/webhook -hooks=/usr/share/hooks/hooks.json -hotreload=true -ip "127.0.0.1" -port=9000 -verbose=true
 WorkingDirectory=/opt/webhook
 KillMode=process
 Restart=on-failure
@@ -1100,10 +1100,10 @@ WantedBy=multi-user.target
 Now, it needs to be linked in `/etc/systemd/system/`. Be sure not to call it just "webhook.service", because it would conflict with another service:
 
 ```console
-ln -s /opt/webhook/webhook.service /etc/systemd/system/mywebhook.service
+ln -s /opt/webhook/webhook.service /etc/systemd/system/go-webhook.service
 systemctl daemon-reload
-systemctl enable mywebhook
-systemctl start mywebhook
+systemctl enable go-webhook
+systemctl start go-webhook
 ```
 
 Every change made will be automatically taken in account, so you don’t have to reload the configuration manually like apache or nginx.
