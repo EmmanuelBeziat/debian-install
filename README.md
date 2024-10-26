@@ -1562,8 +1562,10 @@ The point here is to define an access for a screenshot app to upload files in a 
 Start by creating a new user:
 
 ```console
-adduser --no-create-home screenshot
+adduser screenshot
 ```
+
+Do NOT create it without a home, it wouldn’t be able to connect in SFTP.
 
 Let’s allow the user to connect to ssh with a password. Edit the ssh config file and add the following at the end:
 
@@ -1625,3 +1627,77 @@ The script will add a first user. To add another one, reexecute the script and s
 Configuration files (`*.ovpn`) are written in `/root/`.
 
 ## 10.3 Auto saves via FTP
+
+### 10.3.1 Install lftp
+
+```console
+apt install lftp
+```
+
+### 10.3.2 Preparing credentials
+
+In order not to write plain text mariadb credentials in scripts, create a file in `/root`:
+
+✏️ `/root/.my.cnf`
+```bash
+[client]
+user = your_mysql_user
+password = your_mysql_password
+host = localhost
+```
+
+Then, secure it:
+
+```console
+chmod 600 /root/.my.cnf
+```
+
+Same way, create a file to store the ftp credentials in `/root`. Be sure there is no space and no empty line, it seem to make the parsing fail.
+
+✏️ `/root/.ftp_credentials`
+
+```bash
+host=host
+user=user
+password=password
+```
+
+Make sure it’s correctly encoded and secure it:
+
+```console
+dos2unix /root/.ftp_credentials
+chmod 600 /root/.ftp_credentials
+```
+### 10.3.3
+
+Make scripts:
+
+✏️ `/opt/backups/backup-db.sh`
+
+* **[📝 Example file: backup-db.sh](samples/scripts/backup-db.md)**
+
+✏️ `/opt/backups/backup-config.sh`
+
+* **[📝 Example file: backup-config.sh](samples/scripts/backup-config.md)**
+
+✏️ `/opt/backups/backup-sites.sh`
+
+* **[📝 Example file: backup-sites.sh](samples/scripts/backup-sites.md)**
+
+Make them excutable:
+
+```console
+chown +x /opt/backups/*
+```
+
+Each script can be executed manually. Let’s automate it:
+
+```console
+crontab -e
+```
+
+```bash
+0 0 */2 * * /opt/backups/backup-db.sh >> /var/log/backups.log 2>&1
+0 0 1 */3 * /opt/backups/backup-sites.md >> /var/log/backups.log 2>&1
+0 0 1 */6 * /opt/backups/backup-config.md >> /var/log/backups.log 2>&1
+```
