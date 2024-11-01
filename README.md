@@ -44,8 +44,7 @@ If help is needed for one of the following commands, use https://explainshell.co
   - [4.2 MongoDB](#42-mongodb)
     - [4.2.1 Install](#421-install)
     - [4.2.2 Configure](#422-configure)
-  - [4.3 PhpMyAdmin](#43-phpmyadmin)
-  - [4.4 Adminer](#44-adminer)
+  - [4.3 Adminer](#44-adminer)
 - [5 SSL and HTTPS](#5-ssl-and-https)
   - [5.1 Certbot](#51-certbot)
 - [6 Webhook](#6-webhook)
@@ -56,7 +55,7 @@ If help is needed for one of the following commands, use https://explainshell.co
   - [7.1 Postfix](#71-postfix)
     - [7.1.1 Configure Postfix as a Forwarding System Mail](#711-configure-postfix-as-a-forwarding-system-mail)
   - [7.2 Dovecot](#72-dovecot)
-  - [7.3 Spamassassin](#73-spamassassin)
+  - [7.3 RSpamD](#73-rspamd)
     - [7.3.1 Configure with Postfix](#731-configure-with-postfix)
   - [7.4 DKIM](#74-dkim)
   - [7.5 DMARC](#75-dmarc)
@@ -74,6 +73,9 @@ If help is needed for one of the following commands, use https://explainshell.co
     - [10.2.1 Installation](#1021-installation)
 	- [10.2.2 Add user](#1022-add-users)
   - [10.3 Auto saves via FTP](#103-auto-saves-via-ftp)
+    - [10.3.1 Install LFTP](#1031-install-lftp)
+	- [10.3.2 Preparing credentials](#1032-preparing-credentials)
+	- [10.3.3 Make Scripts](#1033-make-sripts)
 
 # 0 Preliminary stuff
 
@@ -396,7 +398,7 @@ By default, the Nginx version is tied to the Debian release. To force upgrade to
 To avoid any odd issue, you may install the "native" version first:
 
 ```console
-apt install -y nginx nginx-common
+apt install -y nginx
 ```
 
 ```console
@@ -915,12 +917,7 @@ To connect to the database, use the command:
 mongo --port <CUSTOM_PORT> -u mongouser -p --authenticationDatabase admin
 ```
 
-
-## 4.3 PhpMyAdmin
-
-🔺I’ll be testing and using Adminer on my new server. The configuration shown here is for documentation purpose. Jump to next section for Adminer installation.
-
-## 4.4 Adminer
+## 4.3 Adminer
 
 Alternative to PhpMyAdmin, Adminer is a web-based MySQL management tool. It is a free and open-source database management tool written in PHP.
 
@@ -1204,61 +1201,16 @@ apt install postfix-mysql
 ```
 
 
-## 7.3 Spamassassin
+## 7.3 RSpamD
 
-![SpamAssassin](https://spamassassin.apache.org/images/spamassassin-logobar.png)
+![RSpamD](https://rspamd.com/img/rspamd_logo_navbar.png)
 
 
-
-Start by installing Spamassassin.
-
-```console
-apt install spamassassin
-```
-
-Then, we need to create a user and a group:
+Start by installing RSpamD.
 
 ```console
-adduser spamassassin
+apt install rspamd
 ```
-
-Edit the configuration file:
-
-✏️ `/etc/default/spamassassin`
-
-```bash
-OPTIONS="--username spamassassin --nouser-config --max-children 2 --helper-home-dir ${SAHOME} --socketowner=spamassassin --socketgroup=spamassassin --socketmode=0660"
-CRON=1
-```
-* **[📝 Example file: Spamassassin sample](samples/etc/spamassassin/config.md)**
-
-Lastly, create a file named `spamassassin` in `/var/spool/postfix/private`, and give it the owner postfix (110/117).
-
-## 7.3.1 Configure with Postfix
-
-✏️ `/etc/postfix/master.cf`
-
-Replace line `smtp`:
-
-```bash
-smtp inet n - - - - smtpd -o content_filter=spamassassin
-```
-
-At the end, add:
-
-```bash
-spamassassin unix - n n - - pipe
-user=spamassassin argv=/usr/bin/spamc -f -e /usr/sbin/sendmail -oi -f ${sender} ${recipient}
-```
-
-Reload configuration by restarting:
-
-```bash
-systemctl restart spamassassin
-systemctl restart postfix
-```
-
-**[💡 Documentation (https://spamassassin.apache.org/)](https://spamassassin.apache.org/)**
 
 ## 7.4 DKIM
 
@@ -1668,9 +1620,7 @@ Make sure it’s correctly encoded and secure it:
 dos2unix /root/.ftp_credentials
 chmod 600 /root/.ftp_credentials
 ```
-### 10.3.3
-
-Make scripts:
+### 10.3.3 Make scripts
 
 ✏️ `/opt/backups/backup-db.sh`
 
