@@ -7,7 +7,7 @@ command -v zip >/dev/null 2>&1 || { echo "zip command is required but it's not i
 
 # Define variables
 DATE=$(date +'%Y.%m.%d')
-ARCHIVE_NAME="/root/${DATE}_mysql.zip"
+ARCHIVE_NAME="/var/backups/server/${DATE}_mysql.zip"
 
 
 # Load FTP credentials

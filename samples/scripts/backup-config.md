@@ -6,7 +6,7 @@ command -v zip >/dev/null 2>&1 || { echo "zip command is required but it's not i
 
 # Define variables
 DATE=$(date +'%Y.%m.%d')
-ARCHIVE_NAME="/root/${DATE}_conf-files.zip"
+ARCHIVE_NAME="/var/backups/server/${DATE}_conf-files.zip"
 
 # Load FTP credentials
 FTP_HOST=$(grep 'host=' /root/.ftp_credentials | cut -d '=' -f2 | xargs)

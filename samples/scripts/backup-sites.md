@@ -3,7 +3,7 @@
 
 # Define variables
 DATE=$(date +'%Y.%m.%d')
-ARCHIVE_NAME="/root/${DATE}_sites.zip"
+ARCHIVE_NAME="/var/backups/server/${DATE}_sites.zip"
 SOURCE_DIRS=(
     "/var/www/site1"
     "/var/www/site2"
