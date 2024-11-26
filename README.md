@@ -792,6 +792,7 @@ nvm install "$LATEST_VERSION"
 
 # Step 5: Set the latest Node.js version as default
 echo "Setting Node.js version $LATEST_VERSION as the default version…"
+nvm use "$LATEST_VERSION"
 nvm alias default "$LATEST_VERSION"
 echo "Default Node.js version set to $LATEST_VERSION."
 
@@ -816,7 +817,6 @@ echo "PM2 processes resurrected."
 # Step 9: Final Confirmation
 echo "Node.js update process completed successfully!"
 echo "Installed Node.js version: $(node -v)"
-
 ```
 
 Make it executable:
