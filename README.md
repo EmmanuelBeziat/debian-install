@@ -684,7 +684,7 @@ NodeJS can be installed with the package manager, but in order to get more flexi
 Download the latest installer script from the repository and run it.
 
 ```console
-curl -sL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh -o install_nvm.sh
+curl -sL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh -o install_nvm.sh
 bash install_nvm.sh
 source ~/.profile
 nvm -v
@@ -759,36 +759,63 @@ NVM has an issue: updating the version will not keep your globally installed pac
 #!/bin/bash
 
 # Step 1: Save list of global npm packages
-echo "Saving list of global npm packages..."
+echo "Step 1: Saving the list of global npm packages..."
 GLOBAL_PACKAGES=$(npm list -g --depth=0 --json | jq -r '.dependencies | keys[]')
+echo "Global npm packages saved: $GLOBAL_PACKAGES"
 
 # Step 2: Save PM2 processes
-echo "Saving PM2 process list..."
+echo "Step 2: Saving PM2 process list..."
 pm2 save
+echo "PM2 processes saved."
 
-# Step 3: Install latest Node.js via nvm
-echo "Installing the latest Node.js version..."
-nvm install node
+# Step 3: Load nvm environment
+echo "Step 3: Loading nvm..."
+export NVM_DIR="$HOME/.nvm"
+if [ -s "$NVM_DIR/nvm.sh" ]; then
+  . "$NVM_DIR/nvm.sh"
+  echo "nvm loaded successfully."
+else
+  echo "Error: nvm not found. Please install nvm and try again."
+  exit 1
+fi
 
-# Step 4: Set the latest Node.js version as default
-echo "Setting the latest Node.js version as default..."
-nvm alias default node
+# Step 4: Fetch and install the latest Node.js version
+echo "Step 4: Fetching the latest Node.js version..."
+LATEST_VERSION=$(nvm ls-remote | grep -Eo 'v[0-9]+\.[0-9]+\.[0-9]+' | tail -n 1)
+if [ -z "$LATEST_VERSION" ]; then
+  echo "Error: Unable to fetch the latest Node.js version. Exiting."
+  exit 1
+fi
+echo "Latest Node.js version fetched: $LATEST_VERSION"
+echo "Installing Node.js version $LATEST_VERSION..."
+nvm install "$LATEST_VERSION"
 
-# Step 5: Reinstall global npm packages
-echo "Reinstalling global npm packages..."
+# Step 5: Set the latest Node.js version as default
+echo "Step 5: Setting Node.js version $LATEST_VERSION as the default version..."
+nvm alias default "$LATEST_VERSION"
+echo "Default Node.js version set to $LATEST_VERSION."
+
+# Step 6: Reinstall global npm packages
+echo "Step 6: Reinstalling global npm packages..."
 for package in $GLOBAL_PACKAGES; do
+  echo "Installing $package..."
   npm install -g "$package"
 done
+echo "Global npm packages reinstalled."
 
-# Step 6: Reinstall PM2 globally
-echo "Reinstalling PM2..."
+# Step 7: Reinstall PM2 globally
+echo "Step 7: Reinstalling PM2..."
 npm install -g pm2
+echo "PM2 reinstalled."
 
-# Step 7: Resurrect PM2 processes
-echo "Resurrecting PM2 processes..."
+# Step 8: Resurrect PM2 processes
+echo "Step 8: Resurrecting PM2 processes..."
 pm2 resurrect
+echo "PM2 processes resurrected."
 
-echo "Node.js update complete!"
+# Step 9: Final Confirmation
+echo "Node.js update process completed successfully!"
+echo "Installed Node.js version: $(node -v)"
 ```
 
 Make it executable:
