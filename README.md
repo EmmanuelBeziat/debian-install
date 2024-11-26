@@ -193,7 +193,7 @@ service ssh restart
 Common tools
 
 ```console
-apt install -y software-properties-common gnupg2 curl wget zip unzip dos2unix
+apt install -y software-properties-common gnupg2 curl wget zip unzip dos2unix jq
 ```
 
 ## 2.1.1 git
