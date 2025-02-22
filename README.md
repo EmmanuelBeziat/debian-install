@@ -66,6 +66,11 @@ If help is needed for one of the following commands, use https://explainshell.co
     - [8.2.1 Installation](#821-installation)
     - [8.2.2 Custom configuration](#822-custom-configuration)
     - [8.2.3 Custom filters](#823-custom-filters)
+  - [8.3 CrowdSec](#83-crowdsec)
+    - [8.3.1 Installation](#831-installation)
+    - [8.3.2 Configuration](#832-configuration)
+    - [8.3.3 Usage](#833-usage)
+    - [8.3.4 Secure Access](#834-secure-acccess)
 - [9 FTP](#9-ftp)
 - [10 Services](#10-services)
   - [10.1 Screenshot app (Monosnap, ShareX, etc.)](#101-screenshot-app-monosnap-sharex-etc)
@@ -1478,6 +1483,8 @@ ufw delete <number>
 
 ## 8.2 Fail2ban
 
+Fail2Ban is an intrusion prevention software framework that will lock IP out of the server.
+
 ### 8.2.1 Installation
 
 ```console
@@ -1528,6 +1535,109 @@ systemctl enable fail2ban.service
 ### 8.2.3 Custom filters
 
 If you want to use custom filters with fail2ban it's possible by creating new files in `/etc/fail2ban/filter.d/`.
+
+## 8.3 CrowdSec
+
+<img src="https://github.com/crowdsecurity/crowdsec-docs/blob/main/crowdsec-docs/static/img/crowdsec_logo.png" alt="CrowdSec" title="CrowdSec" width="400" height="260"/>
+
+CrowdSec is an Alternative to Fail2Ban, that relies on participative security with crowdsourced protection against ip
+
+### 8.3.1 Installation
+
+```console
+curl -sL https://packagecloud.io/install/repositories/crowdsec/crowdsec/script.deb.sh | sudo bash
+apt install crowdsec -y
+```
+
+Check that it works:
+
+```console
+systemctl status crowdsec
+```
+
+### 8.3.2 Configuration
+
+**Integration with UFW**
+
+Install dependency for integration with UFW:
+
+```console
+apt install crowdsec-firewall-bouncer-iptables -y
+```
+
+Then enable it:
+
+```console
+cscli bouncers add ufw-bouncer
+```
+
+And check if it works:
+
+```console
+cscli bouncers list
+```
+
+**Watching services**
+
+```console
+cscli collections install crowdsecurity/nginx
+cscli collections install crowdsecurity/postfix
+systemctl restart crowdsec
+```
+
+### 8.3.3 Usage
+
+Check the logs:
+
+```console
+cscli metrics
+```
+
+Check banned IPs:
+
+```console
+cscli decisions list
+```
+
+Lock a specific IP:
+
+```console
+cscli decisions add --ip XX.XX.XX.XX --duration 24h --scope ip --type ban --reason "IP malveillante"
+```
+
+Lock a specific IP range:
+
+```console
+cscli decisions add --range XX.XX.XX.0/24 --duration 24h --scope range --type ban --reason "Réseau malveillant"
+```
+
+Unlock a specific IP:
+
+```console
+cscli decisions delete --ip <IP>
+```
+
+### 8.3.4 Secure acccess
+
+To avoid being locked out, whitelist a safe IP.
+
+✏️ `/etc/crowdsec/parsers/s02-enrich/custom-whitelist.yaml`
+
+```yaml
+name: crowdsecurity/custom-whitelist
+description: "Whitelist IP sécurité"
+whitelist:
+  reason: "IP de sécurité"
+  ip:
+    - XX.XX.XX.XX
+```
+
+Then restart CrowdSec and check if the IP is correctly whitelisted:
+
+```console
+systemctl restart crowdsec
+cscli decisions list
+```
 
 # 9 FTP
 
