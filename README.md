@@ -33,6 +33,7 @@ If help is needed for one of the following commands, use https://explainshell.co
     - [3.2.3 VirtualHosts config](#323-virtualhosts-config)
   - [3.3 PHP](#33-php)
     - [3.3.1 Installation](#331-installation)
+    - [3.3.2 Composer](#332-composer)
   - [3.4 NodeJS](#34-nodejs)
     - [3.4.1 Npm-check-Update](#341-npm-check-update)
     - [3.4.2 PM2](#342-pm2)
@@ -677,6 +678,21 @@ Once everything is working, configure your php instance.
 * `post_max_size = 512M`
 * `upload_max_filesize = 512M`
 * `date.timezone = Europe/Paris`
+
+### 3.3.2 Composer
+
+Now that php is available in the command line, install composer
+
+```console
+curl -sS https://getcomposer.org/installer | php
+```
+
+Add it to global path:
+
+```console
+mv composer.phar /usr/local/bin/composer
+chmod +x /usr/local/bin/composer
+```
 
 ## 3.4 NodeJS
 
