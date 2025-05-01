@@ -612,7 +612,7 @@ systemctl restart nginx
 
 ### 3.3.1 Installation
 
-To use php 8, a third party repository is needed. If you want to stick with php 7.4, ignore the first steps and replace "8.3" by "7.4".
+To use php 8, a third party repository is needed. If you want to stick with php 7.4, ignore the first steps and replace "8.4" by "7.4".
 
 ```console
 apt -y install apt-transport-https lsb-release ca-certificates
@@ -630,7 +630,7 @@ apt-cache policy php
 If everything is reay, install the version of php you need, then check if it's installed correctly.
 
 ```console
-apt install php8.3 php8.3-opcache libapache2-mod-php8.3 php8.3-mysql php8.3-curl php8.3-gd php8.3-intl php8.3-mbstring php8.3-xml php8.3-zip php8.3-fpm php8.3-readline php8.3-xml
+apt install php8.4 php8.4-opcache libapache2-mod-php8.4 php8.4-mysql php8.4-curl php8.4-gd php8.4-intl php8.4-mbstring php8.4-xml php8.4-zip php8.4-fpm php8.4-readline php8.4-xml
 php -v
 ```
 
@@ -646,7 +646,7 @@ Add a mod for factcgi in apache.
 	AddType application/x-httpd-fastphp .php
 	Action application/x-httpd-fastphp /php-fcgi
 	Alias /php-fcgi /usr/lib/cgi-bin/php-fcgi
-	FastCgiExternalServer /usr/lib/cgi-bin/php-fcgi -socket /run/php/php8.3-fpm.sock -pass-header Authorization
+	FastCgiExternalServer /usr/lib/cgi-bin/php-fcgi -socket /run/php/php8.4-fpm.sock -pass-header Authorization
 
 	<Directory /usr/lib/cgi-bin>
 		Require all granted
@@ -660,19 +660,19 @@ And enable it.
 a2enmod fastcgi
 ```
 
-Enable the php8.3-fpm service.
+Enable the php8.4-fpm service.
 
 ```console
 a2enmod proxy_fcgi setenvif
-a2enconf php8.3-fpm
-a2dismod php8.3
+a2enconf php8.4-fpm
+a2dismod php8.4
 ```
 
 ⚙️ Then restart Apache2.
 
 Once everything is working, configure your php instance.
 
-✏️ `/etc/php/8.3/fpm/php.ini`
+✏️ `/etc/php/8.4/fpm/php.ini`
 
 * `max_execution_time = 300`
 * `post_max_size = 512M`
