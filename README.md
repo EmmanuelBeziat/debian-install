@@ -60,7 +60,9 @@ If help is needed for one of the following commands, use https://explainshell.co
     - [7.3.1 Configure with Postfix](#731-configure-with-postfix)
   - [7.4 DKIM](#74-dkim)
   - [7.5 DMARC](#75-dmarc)
-  - [7.6 Testing](#76-testing)
+  - [7.6 Automatic Certificate renewal](#76-automatic-renewal-of-certificate)
+  - [7.7 Testing](#77-testing)
+    - [7.7.1 Useful tools](#771-useful-tools)
 - [8 Security](#8-security)
   - [8.1 UFW](#81-ufw)
   - [8.2 Fail2ban](#82-fail2ban)
@@ -1402,9 +1404,25 @@ DNS:
 _dmarc.yourdomain.com 3600 IN TXT "v=DMARC1;p=quarantine;pct=100;rua=mailto:youradress@yourdomain.com;ruf=mailto:forensik@yourdomain.com;adkim=s;aspf=r"
 ```
 
-## 7.6 Testing
+## 7.6 Automatic renewal of certificate
 
-### 7.6.1 Useful tools
+Postfix and Dovecot are not always looking for the latest ssl certificate after a renewal. To keep them up to date, restart both services using a hook post-renewal of certbox.
+
+✏️ `/etc/letsencrypt/renewal-hooks/post/restart-mail.sh`:
+```bash
+#!/bin/bash
+systemctl restart postfix dovecot
+```
+
+Make it executable:
+
+```console
+chmod +x /etc/letsencrypt/renewal-hooks/post/restart-mail.sh
+```
+
+## 7.7 Testing
+
+### 7.7.1 Useful tools
 
 ```console
 apt install dnsutils mailutils
