@@ -142,10 +142,11 @@ reboot
 When back online, purge obsolete packages.
 
 ```console
+apt autoremove --purge
+apt autoclean
+apt clean
 apt purge '~c'
 apt purge '~o'
-apt autoremove
-apt autoclean
 ```
 
 Check the version.
