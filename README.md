@@ -1239,7 +1239,7 @@ systemctl restart postfix
 Postfix just transfer mails. To have a fully working mailbox, install Dovecot:
 
 ```bash
-install dovecot-core dovecot-imapd dovecot-pop3d dovecot-lmtpd
+apt install dovecot-core dovecot-imapd dovecot-pop3d dovecot-lmtpd
 ```
 
 ### 7.2.1 Using Dovecot with mysql
