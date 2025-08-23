@@ -1067,8 +1067,8 @@ Webhook require Go to be installed.
 Go to [Go website](https://go.dev/dl/) to get the latest version.
 
 ```console
-wget https://go.dev/dl/go1.17.4.linux-amd64.tar.gz
-tar -xvf go1.17.4.linux-amd64.tar.gz -C /usr/local
+wget https://go.dev/dl/go1.25.0.linux-amd64.tar.gz
+tar -xvf go1.25.0.linux-amd64.tar.gz -C /usr/local
 ```
 
 Add go to PATH variable and check if it is working.
