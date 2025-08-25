@@ -42,10 +42,7 @@ If help is needed for one of the following commands, use https://explainshell.co
   - [4.1 MariaDB](#41-mariadb)
     - [4.1.1 Install](#411-install)
 	- [4.1.2 Create admin user](#412-create-admin-user)
-  - [4.2 MongoDB](#42-mongodb)
-    - [4.2.1 Install](#421-install)
-    - [4.2.2 Configure](#422-configure)
-  - [4.3 Adminer](#44-adminer)
+  - [4.2 Adminer](#44-adminer)
 - [5 SSL and HTTPS](#5-ssl-and-https)
   - [5.1 Certbot](#51-certbot)
 - [6 Webhook](#6-webhook)
@@ -74,7 +71,27 @@ If help is needed for one of the following commands, use https://explainshell.co
     - [8.3.2 Configuration](#832-configuration)
     - [8.3.3 Usage](#833-usage)
     - [8.3.4 Secure Access](#834-secure-acccess)
-- [9 FTP](#9-ftp)
+- [9 Monitoring et Logs](#9-monitoring-et-logs)
+  - [9.1 Netdata](#91-netdata)
+    - [9.1.1 Installation](#911-installation)
+    - [9.1.2 Configuration](#912-configuration)
+    - [9.1.3 Nginx Reverse Proxy](#913-nginx-reverse-proxy)
+    - [9.1.4 Custom Alerts](#914-custom-alerts)
+  - [9.2 Logrotate](#92-logrotate)
+    - [9.2.1 Installation](#921-installation)
+    - [9.2.2 Configuration](#922-configuration)
+    - [9.2.3 Test Configuration](#923-test-configuration)
+  - [9.3 Alertes Système](#93-alertes-systeme)
+    - [9.3.1 Installation de Monit](#931-installation-de-monit)
+    - [9.3.2 Configuration Monit](#932-configuration-monit)
+    - [9.3.3 Scripts d'Alerte Personnalisés](#933-scripts-dalerte-personnalises)
+    - [9.3.4 Configuration des Tâches Cron](#934-configuration-des-taches-cron)
+    - [9.3.5 Démarrage des Services](#935-demarrage-des-services)
+  - [9.4 Logs Centralisés (Optionnel)](#94-logs-centralises-optionnel)
+    - [9.4.1 Installation de rsyslog](#941-installation-de-rsyslog)
+    - [9.4.2 Configuration rsyslog](#942-configuration-rsyslog)
+    - [9.4.3 Rotation des Logs Système](#943-rotation-des-logs-systeme)
+- [10 FTP](#10-ftp)
 - [10 Services](#10-services)
   - [10.1 Screenshot app (Monosnap, ShareX, etc.)](#101-screenshot-app-monosnap-sharex-etc)
   - [10.2 VPN](#102-vpn)
@@ -884,92 +901,12 @@ Create an admin utilisator for external connections.
 
 ```console
 mysql -u root -p
-CREATE USER 'user'@localhost IDENTIFIED BY 'password';
-GRANT ALL PRIVILEGES ON *.* TO 'user'@localhost IDENTIFIED BY 'password';
+CREATE USER 'user'@'localhost' IDENTIFIED BY 'password';
+GRANT ALL PRIVILEGES ON *.* TO 'user'@'localhost' WITH GRANT OPTION;
 FLUSH PRIVILEGES;
 ```
 
-## 4.2 MongoDB
-
-![MongoDB Logo](https://upload.wikimedia.org/wikipedia/commons/thumb/9/93/MongoDB_Logo.svg/320px-MongoDB_Logo.svg.png)
-
-MongoDB is a source-available cross-platform document-oriented database program. Classified as a NoSQL database program, MongoDB uses JSON-like documents with optional schemas. MongoDB is developed by MongoDB Inc. and licensed under the Server Side Public License (SSPL).
-
-**[💡 Documentation (mongodb.com)](https://www.mongodb.com/docs/manual/)**
-
-### 4.2.1 Install
-
-> 🛑 MongoDB has odd compatibility issues with CPUs. It needs AVX, which is not available on all CPUs, mostly server CPUs.
->
-> If you can't use the last version, you must try with previous ones.
-
-
-MongoDB must be added to package manager, and require a pgp key to do so.
-
-/etc/apt/trusted.gpg.d
-
-```console
-curl -fsSL https://www.mongodb.org/static/pgp/server-7.0.asc | \ gpg -o /usr/share/keyrings/mongodb-server-7.0.gpg \ --dearmor
-echo "deb [ signed-by=/usr/share/keyrings/mongodb-server-7.0.gpg ] http://repo.mongodb.org/apt/debian bullseye/mongodb-org/7.0 main" | tee /etc/apt/sources.list.d/mongodb-org-7.0.list
-apt update
-apt install -y mongodb-org
-```
-
-### 4.2.2 Configure
-
-✏️ `/etc/mongod.conf`
-
-```yaml
-net:
-  port: <CUSTOM_PORT>`
-```
-
-```console
-chown -R mongodb:mongodb /var/lib/mongodb
-chown -R mongodb:mongodb /var/log/mongodb
-```
-
-Then, start the service.
-
-```console
-systemctl start mongod
-chown mongodb:mongodb /tmp/mongodb-<CUSTOM_PORT>.sock
-systemctl enable mongod
-mongod --version
-```
-
-> 🛑 After installation, MongoDB is not secured at all, and can be accessed without password. It **MUST** be setup properly. 🛑
-
-First, connect to the database and use admin database to create a new user.
-
-```console
-mongo --port <CUSTOM_PORT>
-use admin
-db.createUser({ user: "admin", pwd: "admin", roles: [{role: "userAdminAnyDatabase", db: "admin"}, "readWriteAnyDatabase" ]})
-```
-
-Next, configure MongoDB file configuration.
-
-✏️ `/etc/mongod.conf`
-
-```yaml
-security:
-  authorization: enabled`
-```
-
-⚙️ Then restart the service.
-
-```console
-systemctl restart mongod
-```
-
-To connect to the database, use the command:
-
-```console
-mongo --port <CUSTOM_PORT> -u mongouser -p --authenticationDatabase admin
-```
-
-## 4.3 Adminer
+## 4.2 Adminer
 
 Alternative to PhpMyAdmin, Adminer is a web-based MySQL management tool. It is a free and open-source database management tool written in PHP.
 
@@ -1674,7 +1611,429 @@ systemctl restart crowdsec
 cscli decisions list
 ```
 
-# 9 FTP
+# 9 Monitoring et Logs
+
+## 9.1 Netdata
+
+![Netdata Logo](https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/Netdata_logo.svg/320px-Netdata_logo.svg.png)
+
+Netdata is a real-time performance monitoring tool that provides insights into real-time metrics from systems, applications, and services.
+
+**[💡 Documentation (netdata.cloud)](https://docs.netdata.cloud/)**
+
+### 9.1.1 Installation
+
+Install Netdata using the official installation script:
+
+```console
+bash <(curl -Ss https://my-netdata.io/kickstart.sh) --stable-channel --disable-telemetry
+```
+
+The installation script will automatically:
+- Install all dependencies
+- Compile and install Netdata
+- Create a systemd service
+- Configure basic monitoring
+
+### 9.1.2 Configuration
+
+Netdata is accessible by default on port 19999. To secure access, configure authentication:
+
+✏️ `/etc/netdata/netdata.conf`
+
+```ini
+[global]
+    hostname = your-server-name
+    memory mode = dbengine
+    page cache size = 256
+    dbengine multihost disk space = 256
+
+[web]
+    bind to = 127.0.0.1:19999
+    allow connections from = 127.0.0.1
+    allow connections from = ::1
+    allow connections from = <YOUR_IP>/32
+```
+
+### 9.1.3 Nginx Reverse Proxy
+
+To access Netdata through your domain, add a location block to your Nginx configuration:
+
+✏️ `/etc/nginx/sites-available/netdata`
+
+```nginx
+server {
+    listen 80;
+    server_name monitoring.yourdomain.com;
+
+    location / {
+        proxy_pass http://127.0.0.1:19999;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # WebSocket support
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}
+```
+
+Enable the site and restart Nginx:
+
+```console
+ln -s /etc/nginx/sites-available/netdata /etc/nginx/sites-enabled/
+nginx -t
+systemctl restart nginx
+```
+
+### 9.1.4 Custom Alerts
+
+Create custom alert configurations:
+
+✏️ `/etc/netdata/health.d/cpu.conf`
+
+```yaml
+template: 10min_cpu_usage
+      on: system.cpu
+    calc: $user + $system
+   every: 10s
+    warn: $this > (($status >= $WARNING)  ? (80) : (90))
+    crit: $this > (($status == $CRITICAL) ? (90) : (95))
+   delay: up 1m down 5m
+    info: average cpu utilization for the last 10 minutes
+      to: sysadmin
+```
+
+✏️ `/etc/netdata/health.d/disk.conf`
+
+```yaml
+template: disk_usage
+      on: disk.space
+   every: 1m
+    warn: $this < 20
+    crit: $this < 10
+   delay: up 1m down 5m
+    info: disk space usage
+      to: sysadmin
+```
+
+## 9.2 Logrotate
+
+Logrotate is a system utility that manages the automatic rotation and compression of log files.
+
+### 9.2.1 Installation
+
+Logrotate is usually pre-installed on Debian systems. If not:
+
+```console
+apt install logrotate
+```
+
+### 9.2.2 Configuration
+
+Create custom logrotate configurations for your services:
+
+✏️ `/etc/logrotate.d/nginx`
+
+```bash
+/var/log/nginx/*.log {
+    daily
+    missingok
+    rotate 52
+    compress
+    delaycompress
+    notifempty
+    create 0640 www-data adm
+    sharedscripts
+    postrotate
+        if [ -f /var/run/nginx.pid ]; then
+            kill -USR1 `cat /var/run/nginx.pid`
+        fi
+    endscript
+}
+```
+
+✏️ `/etc/logrotate.d/apache2`
+
+```bash
+/var/log/apache2/*.log {
+    daily
+    missingok
+    rotate 52
+    compress
+    delaycompress
+    notifempty
+    create 640 root adm
+    sharedscripts
+    postrotate
+        if /etc/init.d/apache2 status > /dev/null ; then \
+            /etc/init.d/apache2 reload > /dev/null; \
+        fi;
+    endscript
+}
+```
+
+✏️ `/etc/logrotate.d/mysql`
+
+```bash
+/var/log/mysql/*.log {
+    daily
+    rotate 7
+    missingok
+    compress
+    create 640 mysql adm
+    postrotate
+        if test -x /usr/bin/mysqladmin && \
+           /usr/bin/mysqladmin ping -h localhost --silent; then
+            /usr/bin/mysqladmin flush-logs
+        fi
+    endscript
+}
+```
+
+✏️ `/etc/logrotate.d/fail2ban`
+
+```bash
+/var/log/fail2ban.log {
+    daily
+    rotate 7
+    compress
+    delaycompress
+    missingok
+    notifempty
+    postrotate
+        systemctl reload fail2ban
+    endscript
+}
+```
+
+### 9.2.3 Test Configuration
+
+Test your logrotate configuration:
+
+```console
+logrotate -d /etc/logrotate.conf
+```
+
+Force a rotation:
+
+```console
+logrotate -f /etc/logrotate.d/nginx
+```
+
+## 9.3 Alertes Système
+
+### 9.3.1 Installation de Monit
+
+Monit is a utility for monitoring and managing daemon processes or similar programs running on Unix systems.
+
+```console
+apt install monit
+```
+
+### 9.3.2 Configuration Monit
+
+✏️ `/etc/monit/monitrc`
+
+```bash
+set daemon 60
+set logfile /var/log/monit.log
+set idfile /var/lib/monit/id
+set statefile /var/lib/monit/state
+
+# Email alerts
+set mailserver localhost
+set mail-format {
+  from: monit@yourdomain.com
+  subject: $SERVICE $EVENT at $DATE
+  message: Monit $ACTION $SERVICE at $DATE on $HOST: $DESCRIPTION.
+}
+set alert admin@yourdomain.com
+
+# Web interface
+set httpd port 2812 and
+  use address 127.0.0.1
+  allow 127.0.0.1
+  allow <YOUR_IP>/32
+
+# Check system resources
+check system $HOSTNAME
+  if loadavg (1min) > 4 then alert
+  if loadavg (5min) > 2 then alert
+  if memory usage > 80% then alert
+  if cpu usage (user) > 80% then alert
+  if cpu usage (system) > 80% then alert
+
+# Check services
+check process nginx with pidfile /var/run/nginx.pid
+  start program = "/etc/init.d/nginx start"
+  stop program = "/etc/init.d/nginx stop"
+  if failed host 127.0.0.1 port 80 then restart
+  if 5 restarts within 5 cycles then timeout
+
+check process apache2 with pidfile /var/run/apache2/apache2.pid
+  start program = "/etc/init.d/apache2 start"
+  stop program = "/etc/init.d/apache2 stop"
+  if failed host 127.0.0.1 port 8085 then restart
+  if 5 restarts within 5 cycles then timeout
+
+check process mysql with pidfile /var/run/mysqld/mysqld.pid
+  start program = "/etc/init.d/mysql start"
+  stop program = "/etc/init.d/mysql stop"
+  if failed host 127.0.0.1 port 3306 then restart
+  if 5 restarts within 5 cycles then timeout
+
+check process fail2ban with pidfile /var/run/fail2ban/fail2ban.pid
+  start program = "/etc/init.d/fail2ban start"
+  stop program = "/etc/init.d/fail2ban stop"
+  if 5 restarts within 5 cycles then timeout
+
+# Check disk space
+check device rootfs with path /
+  if space usage > 80% then alert
+  if inode usage > 80% then alert
+
+# Check SSL certificate expiration
+check file ssl_cert with path /etc/letsencrypt/live/yourdomain.com/fullchain.pem
+  if changed timestamp then alert
+```
+
+### 9.3.3 Scripts d'Alerte Personnalisés
+
+Create custom alert scripts:
+
+✏️ `/usr/local/bin/disk-alert.sh`
+
+```bash
+#!/bin/bash
+
+# Disk space alert script
+THRESHOLD=80
+DISK_USAGE=$(df / | awk 'NR==2 {print $5}' | sed 's/%//')
+
+if [ "$DISK_USAGE" -gt "$THRESHOLD" ]; then
+  echo "WARNING: Disk usage is ${DISK_USAGE}%" | \
+  mail -s "Disk Space Alert on $(hostname)" admin@yourdomain.com
+fi
+```
+
+✏️ `/usr/local/bin/ssl-expiry-check.sh`
+
+```bash
+#!/bin/bash
+
+# SSL certificate expiry check
+DOMAIN="yourdomain.com"
+DAYS_WARNING=30
+
+EXPIRY_DATE=$(openssl x509 -enddate -noout -in /etc/letsencrypt/live/$DOMAIN/fullchain.pem | cut -d= -f2)
+EXPIRY_EPOCH=$(date -d "$EXPIRY_DATE" +%s)
+CURRENT_EPOCH=$(date +%s)
+DAYS_LEFT=$(( ($EXPIRY_EPOCH - $CURRENT_EPOCH) / 86400 ))
+
+if [ "$DAYS_LEFT" -lt "$DAYS_WARNING" ]; then
+  echo "WARNING: SSL certificate for $DOMAIN expires in $DAYS_LEFT days" | \
+  mail -s "SSL Certificate Expiry Alert" admin@yourdomain.com
+fi
+```
+
+Make scripts executable:
+
+```console
+chmod +x /usr/local/bin/disk-alert.sh
+chmod +x /usr/local/bin/ssl-expiry-check.sh
+```
+
+### 9.3.4 Configuration des Tâches Cron
+
+Add monitoring tasks to crontab:
+
+```console
+crontab -e
+```
+
+```bash
+# Monitoring tasks
+0 */6 * * * /usr/local/bin/disk-alert.sh
+0 8 * * 1 /usr/local/bin/ssl-expiry-check.sh
+0 2 * * * /usr/bin/find /var/log -name "*.log" -mtime +30 -delete
+```
+
+### 9.3.5 Démarrage des Services
+
+Enable and start monitoring services:
+
+```console
+systemctl enable monit
+systemctl start monit
+systemctl enable netdata
+systemctl start netdata
+```
+
+Check status:
+
+```console
+systemctl status monit
+systemctl status netdata
+monit status
+```
+
+## 9.4 Logs Centralisés (Optionnel)
+
+### 9.4.1 Installation de rsyslog
+
+For centralized logging:
+
+```console
+apt install rsyslog
+```
+
+### 9.4.2 Configuration rsyslog
+
+✏️ `/etc/rsyslog.conf`
+
+```bash
+# Add at the end of the file
+# Send all logs to a central server (replace with your log server IP)
+*.* @logserver.yourdomain.com:514
+```
+
+### 9.4.3 Rotation des Logs Système
+
+✏️ `/etc/logrotate.d/rsyslog`
+
+```bash
+/var/log/syslog
+/var/log/mail.info
+/var/log/mail.warn
+/var/log/mail.err
+/var/log/mail.log
+/var/log/daemon.log
+/var/log/kern.log
+/var/log/auth.log
+/var/log/user.log
+/var/log/lpr.log
+/var/log/cron.log
+/var/log/debug
+/var/log/messages
+{
+  rotate 4
+  weekly
+  missingok
+  notifempty
+  compress
+  delaycompress
+  sharedscripts
+  postrotate
+    /usr/lib/rsyslog/rsyslog-rotate
+  endscript
+}
+```
+
+# 10 FTP
 
 # 10 Services
 
