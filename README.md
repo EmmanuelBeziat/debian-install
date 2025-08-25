@@ -1084,6 +1084,7 @@ go version
 
 ```console
 snap install webhook
+ln -s /snap/webhook/current/bin/webhook /usr/bin/webhook
 ```
 
 Prepare the general config file.
