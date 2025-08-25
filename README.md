@@ -1256,7 +1256,7 @@ apt install postfix-mysql
 
 ## 7.3 RSpamD
 
-![RSpamD](https://rspamd.com/img/rspamd_logo_navbar.png)
+![RSpamD]([https://rspamd.com/img/rspamd_logo_navbar.png](https://docs.rspamd.com/img/rspamd_logo_navbar.png))
 
 
 Start by installing RSpamD.
