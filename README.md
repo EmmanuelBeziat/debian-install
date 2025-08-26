@@ -1069,7 +1069,7 @@ Let’s create a service file:
 
 ✏️ `/opt/webhook/webhook.service`:
 
-```bash
+```apache
 [Unit]
 Description=Webhook Custom Service
 After=network.target
@@ -1099,9 +1099,7 @@ Every change made will be automatically taken in account, so you don’t have to
 
 # 7 Mail server
 
-This configuration will create a forwarding system to any regular mail service (like gmail).
-
-Configure a full mail server is a pain in the ass, I highly recommand to check out [this whole guide from workaround.org](https://workaround.org/bullseye/)
+This configuration will create a full mailing system, with users, aliases and antispam, using mysql.
 
 First, you need to create a DNS record for your domain.
 
@@ -1115,81 +1113,350 @@ You can also create a DNS record for SPF. For example, with google services:
 @ 10800 IN TXT "v=spf1 +mx +a +ip4:<YOUR_IP> include:_spf.google.com ?all"
 ```
 
-## 7.1 Postfix
+## 7.1 Install Postfix and Dovecot
 
-Install Postfix (duh).
+Install Postfix and it's extension for using it with mysql. Postfix will handle SMTP.
 
 ```console
-apt install -y postfix
+apt install -y postfix postfix-mysql
 ```
-
-### 7.1.1 Configure Postfix as a Forwarding System Mail
 
 During the install, an assistant will ask which type of mail configuration you wish to use. Chose "no configuration".
 
-Let’s configure the main.cf file:
-
-✏️ `/etc/postfix/main.cf`
-
-* `myhostname = <DOMAIN>`
-
-At the end of the file, add:
+Dovecot will store received mails and provide IMAP access for users.
 
 ```bash
-inet_protocols = all
-inet_interfaces = all
-
-virtual_alias_domains = <DOMAIN>
-virtual_alias_maps = hash:/etc/postfix/virtual
-alias_maps = hash:/etc/postfix/virtual
-alias_database = hash:/etc/postfix/virtual
-mydestination = localhost
-relayhost =
-mailbox_size_limit = 0
-recipient_delimiter = +
-
-# TLS parameters
-smtpd_tls_cert_file=/etc/letsencrypt/live/<DOMAIN>/fullchain.pem
-smtpd_tls_key_file=/etc/letsencrypt/live/<DOMAIN>/privkey.pem
-smtp_use_tls=yes
-smtpd_tls_session_cache_database = btree:${data_directory}/smtpd_scache
-smtp_tls_session_cache_database = btree:${data_directory}/smtp_scache
+apt install -y dovecot-core dovecot-mysql dovecot-pop3d dovecot-imapd dovecot-managesieved dovecot-lmtpd
 ```
 
-Now, we need to create a `virtual` file, and add all the domains to be used as virtual mailboxes (one per line):
+## 7.2 Preparing the database
 
-✏️ `/etc/postfix/virtual`
+Connect to mysql to create a database.
 
 ```bash
-contact@<DOMAIN> <CONTACT_EMAIL>
-hello@<DOMAIN> <HELLO_EMAIL>
+mysql -u root -p
+CREATE DATABASE mailserver;
 ```
 
-⚙️ Then, you need to build the `virtual` file as a data service. Then, restart Postfix:
+Then, we’ll need to create a specific user with readonly rights to check the email addresses. Here, it will be named `mailserver` too. To prevent issues with access, use `127.0.0.1` instead of `localhost`.
+
+```bash
+CREATE USER 'mailserver'@'127.0.0.1' IDENTIFIED BY 'password';
+GRANT SELECT ON mailserver.* TO 'mailserver'@'127.0.0.1';
+FLUSH PRIVILEGES;
+```
+
+Next, create databases :
+
+```sql
+USE mailserver;
+
+CREATE TABLE IF NOT EXISTS `virtual_domains` (
+ `id` int(11) NOT NULL auto_increment,
+ `name` varchar(50) NOT NULL,
+ PRIMARY KEY (`id`)
+ ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE IF NOT EXISTS `virtual_users` (
+ `id` int(11) NOT NULL auto_increment,
+ `domain_id` int(11) NOT NULL,
+ `email` varchar(100) NOT NULL,
+ `password` varchar(150) NOT NULL,
+ `quota` bigint(11) NOT NULL DEFAULT 0,
+ PRIMARY KEY (`id`),
+ UNIQUE KEY `email` (`email`),
+ FOREIGN KEY (domain_id) REFERENCES virtual_domains(id) ON DELETE CASCADE
+ ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE IF NOT EXISTS `virtual_aliases` (
+ `id` int(11) NOT NULL auto_increment,
+ `domain_id` int(11) NOT NULL,
+ `source` varchar(100) NOT NULL,
+ `destination` varchar(100) NOT NULL,
+ PRIMARY KEY (`id`),
+ FOREIGN KEY (domain_id) REFERENCES virtual_domains(id) ON DELETE CASCADE
+ ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+```
+
+## 7.2.1 Configure Postfix
+
+✏️ `/etc/postfix/conf/mysql-virtual-mailbox-domains.cf`
+
+```apache
+user = mailserver
+password = password
+hosts = 127.0.0.1
+dbname = mailserver
+query = SELECT 1 FROM virtual_domains WHERE name='%s'
+```
+
+Now, add the configuration line to `/etc/postfix/main.cf` with this command. Then, test it with `postmap`.
 
 ```console
-postmap /etc/postfix/virtual
-systemctl restart postfix
+postconf virtual_mailbox_domains=mysql:/etc/postfix/conf/mysql-virtual-mailbox-domains.cf
+postmap -q mywebsite.com mysql:/etc/postfix/conf/mysql-virtual-mailbox-domains.cf
 ```
 
-## 7.2 Dovecot
+It should return `1`.
 
-Postfix just transfer mails. To have a fully working mailbox, install Dovecot:
+Then, create the mapping for mailboxes.
 
-```bash
-apt install dovecot-core dovecot-imapd dovecot-pop3d dovecot-lmtpd
+✏️ `/etc/postfix/conf/mysql-virtual-mailbox-maps.cf`
+
+```apache
+user = mailserver
+password = password
+hosts = 127.0.0.1
+dbname = mailserver
+query = SELECT 1 FROM virtual_domains WHERE name='%s'
 ```
 
-### 7.2.1 Using Dovecot with mysql
+And the mapping for aliases.
 
-(Todo)
+✏️ `/etc/postfix/conf/mysql-virtual-alias-maps.cf`
 
-Start by installing a mysql module for postfix.
 
-```bash
-apt install postfix-mysql
+```apache
+user = mailserver
+password = password
+hosts = 127.0.0.1
+dbname = mailserver
+query = SELECT destination FROM virtual\_aliases WHERE source='%s'
 ```
 
+Then add the config lines.
+
+```console
+postconf virtual_mailbox_maps=mysql:/etc/postfix/conf/mysql-virtual-mailbox-maps.cf
+postconf virtual_alias_maps=mysql:/etc/postfix/conf/mysql-virtual-alias-maps.cf
+postmap -q alias@mywebsite.com mysql:/etc/postfix/conf/mysql-virtual-alias-maps.cf
+```
+
+The alias should return the mail it refers to.
+
+Finally, create a file that will handle the catch all of aliases.
+
+✏️ `/etc/postfix/conf/mysql-email2email.cf`
+
+```apache
+user = mailserver
+password = password
+hosts = 127.0.0.1
+dbname = mailserver
+query = SELECT email FROM virtual_users WHERE email='%s'
+```
+
+```console
+postconf virtual_alias_maps=mysql:/etc/postfix/conf/mysql-virtual-email2email.cf
+postmap -q alias@mywebsite.com mysql:/etc/postfix/conf/mysql-virtual-alias-maps.cf
+```
+
+It should return the same address.
+
+Lastly, configure postfix to check all aliases.
+
+```console
+postconf virtual_alias_maps=mysql:/etc/postfix/conf/mysql-virtual-alias-maps.cf,mysql:/etc/postfix/conf/mysql-virtual-email2email.cf
+```
+
+And now, secure the files so only postfix can reach it, since it contains passwords in clear.
+
+```console
+chgrp postfix /etc/postfix/conf/mysql-*.c
+chmod u=rw,g=r,o= /etc/postfix/conf/mysql-*.cf
+```
+
+Lastly, make Postfix listen to IPv6 too.
+
+```console
+postconf -e 'inet_protocols = all'
+```
+
+## 7.2.2 Configure Dovecot
+
+Start by creating a new user with group id 5000 that will own all virtual mailboxes.
+
+```console
+groupadd -g 5000 vmail
+useradd -g vmail -u 5000 vmail -d /var/mail/vhosts -m
+chown -R vmail:vmail /var/mail/vhosts
+```
+
+Now there will be a few changes made to files in `/etc/dovecot/conf.d` folder.
+
+✏️ `10-auth.conf`
+
+```apache
+disable_plaintext_auth = no
+auth_mechanisms = plain login
+
+# !include auth-system.conf.ext
+!include auth-sql.conf.ext
+#!include auth-ldap.conf.ext
+#!include auth-passwdfile.conf.ext
+#!include auth-checkpassword.conf.ext
+#!include auth-static.conf.ext
+```
+
+✏️ `10-mail.conf`
+
+```apache
+mail_location = maildir:/var/mail/vhosts/%d/%n/Maildir
+
+#...
+separator = .
+#...
+```
+
+✏️ `10-master.conf`
+
+```apache
+service lmtp {
+  unix_listener /var/spool/postfix/private/dovecot-lmtp {
+    group = postfix
+    mode = 0600
+    user = postfix
+  }
+}
+#...
+service auth {
+  # Postfix smtp-auth
+	unix_listener /var/spool/postfix/private/auth {
+		mode = 0660
+		user = postfix
+		group = postfix
+	}
+}
+```
+
+✏️ `10-ssl.conf`
+
+```apache
+ssl = required
+
+ssl_cert = </etc/letsencrypt/live/mywebsite.com/fullchain.pem
+ssl_key = </etc/letsencrypt/live/mywebsite.com/privkey.pem
+```
+
+✏️ `10-ssl.conf`
+
+```apache
+ssl = required
+
+ssl_cert = </etc/letsencrypt/live/mywebsite.com/fullchain.pem
+ssl_key = </etc/letsencrypt/live/mywebsite.com/privkey.pem
+```
+
+Now, in the root folder of Dovecot.
+
+✏️ `/etc/dovecot/dovecot-sql.conf.ext`
+
+```apache
+driver = mysql
+default_pass_scheme = BLF-CRYP
+
+connect = \
+  host=127.0.0.1 \
+  dbname=mailserver \
+  user=mailserver \
+  password=password
+
+user_query = SELECT email as user, \
+  concat('*:bytes=', quota) AS quota_rule, \
+  '/var/mail/vhosts/%d/%n' AS home, \
+  5000 AS uid, 5000 AS gid \
+  FROM virtual_users WHERE email='%u'
+
+password_query = SELECT password FROM virtual_users WHERE email='%u'
+
+iterate_query = SELECT email AS user FROM virtual_users
+```
+
+Now, set permissions:
+
+```console
+chown root:root /etc/dovecot/dovecot-sql.conf.ext
+chmod go= /etc/dovecot/dovecot-sql.conf.ext
+```
+
+Finally, restart Dovecot.
+
+```console
+systemctl restart dovecot
+```
+
+### 7.2.3 Set Postfix to send emails to Dovecot via LMTP
+
+```console
+postconf virtual_transport=lmtp:unix:private/dovecot-lmtp
+```
+
+✏️ `/etc/dovecot/conf.d/20-lmtp.conf`
+
+```apache
+protocol lmtp {
+  # Space separated list of plugins to load (default is global mail_plugins).
+  mail_plugins = $mail_plugins sieve
+}
+```
+
+Restart Dovecot to enable configuration, and check if Postfix configuration is clear.
+
+```console
+systemctl restart dovecot
+postfix check
+```
+
+### 7.2.4 Testing email delivery
+
+Install swaks.
+
+```console
+apt install swaks -y
+```
+
+In a second console, use the command:
+
+```console
+swaks --to mail@mywebsite.com --server localhost
+```
+
+### 7.2.5 Authentication and encryption
+
+Enable SMTP authentification so that Postfix can communicate with Dovecot throught a socket.
+
+```console
+postconf smtpd_sasl_type=dovecot
+postconf smtpd_sasl_path=private/auth
+postconf smtpd_sasl_auth_enable=yes
+```
+
+```console
+postconf smtp_tls_security_level = may
+postconf smtp_tls_CAfile = /etc/ssl/certs/ca-certificates.crt
+postconf smtpd_tls_security_level = may
+postconf smtpd_tls_cert_file = /etc/letsencrypt/live/mywebsite.com/fullchain.pem
+postconf smtpd_tls_key_file = /etc/letsencrypt/live/mywebsite.com/privkey.pem
+postconf smtpd_tls_auth_only = yes
+```
+
+✏️ `/etc/postfix/master.cf`
+
+```apache
+submission inet n       -       y       -       -       smtpd
+  -o syslog_name=postfix/submission
+  -o smtpd_tls_security_level=encrypt
+  -o smtpd_sasl_auth_enable=yes
+  -o smtpd_tls_auth_only=yes
+  -o smtpd_reject_unlisted_recipient=no
+  -o smtpd_client_restrictions=
+  -o smtpd_helo_restrictions=
+  -o smtpd_sender_restrictions=
+  -o smtpd_relay_restrictions=
+  -o smtpd_recipient_restrictions=permit_sasl_authenticated,reject
+  -o milter_macro_daemon_name=ORIGINATING
+  -o smtpd_sender_restrictions=reject_sender_login_mismatch,permit_sasl_authenticated,reject
+```
 
 ## 7.3 RSpamD
 
@@ -1436,7 +1703,7 @@ If you have installed Webhook, let’s make a custom application rule (but it's 
 
 ✏️ `/etc/ufw/applications.d/webhook`
 
-```bash
+```apache
 [Webhook]
 title=Webhook Service
 description=Lightweight configurable tool written that allows you to easily create HTTP endpoints
@@ -2124,7 +2391,7 @@ apt install lftp
 In order not to write plain text mariadb credentials in scripts, create a file in `/root`:
 
 ✏️ `/root/.my.cnf`
-```bash
+```apache
 [client]
 user = your_mysql_user
 password = your_mysql_password
@@ -2141,7 +2408,7 @@ Same way, create a file to store the ftp credentials in `/root`. Be sure there i
 
 ✏️ `/root/.ftp_credentials`
 
-```bash
+```apache
 host=host
 user=user
 password=password
