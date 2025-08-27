@@ -1902,7 +1902,7 @@ CrowdSec is an Alternative to Fail2Ban, that relies on participative security wi
 ### 8.3.1 Installation
 
 ```console
-curl -sL https://packagecloud.io/install/repositories/crowdsec/crowdsec/script.deb.sh | sudo bash
+curl -sL https://packagecloud.io/install/repositories/crowdsec/crowdsec/script.deb.sh | bash
 apt install crowdsec -y
 ```
 
