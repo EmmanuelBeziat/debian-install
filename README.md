@@ -1798,7 +1798,8 @@ ufw allow in "OpenSSH"
 Now, proceed to add other needed rules, either with `ufw allow` or `ufw deny`, on a chosen port. Alternatively, you can use `ufw allow <app>` to allow all traffic on a given application.
 
 ```console
-ufw allow in "WWW full"
+ufw allow in "WWW full TCP"
+ufw allow in "WWW full UDP"
 ufw allow in "Mail submission"
 ufw allow in "SMTP"
 ufw allow in "SMTPS"
