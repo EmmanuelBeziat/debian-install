@@ -133,14 +133,6 @@ Update the source-list file:
 Change the sources by upgrading the version name.
 
 ```
-deb http://mirrors.online.net/debian bullseye main non-free contrib
-deb-src http://mirrors.online.net/debian bullseye main non-free contrib
-
-deb http://security.debian.org/debian-security bullseye-security main contrib non-free
-deb-src http://security.debian.org/debian-security bullseye-security main contrib non-free
-```
-
-```
 deb http://mirrors.online.net/debian bookworm main non-free-firmware
 deb-src http://mirrors.online.net/debian bookworm main non-free-firmware
 
@@ -181,6 +173,8 @@ lsb_release -a
 ```
 
 # 1 SSH Setup
+
+<img src="https://raw.githubusercontent.com/openssl/openssl/master/doc/images/openssl.svg" alt="SSH Logo" title="SSH" height="80">
 
 ## 1.1 Add authorized keys
 
@@ -227,7 +221,7 @@ service ssh restart
 Common tools
 
 ```console
-apt install -y software-properties-common gnupg2 curl wget zip unzip dos2unix jq
+apt install -y software-properties-common gnupg2 curl wget zip unzip dos2unix jq dnsutils
 ```
 
 ## 2.1.1 git
@@ -257,7 +251,7 @@ Add github
 
 ## 2.1.2 vim
 
-![Vim logo](https://upload.wikimedia.org/wikipedia/commons/thumb/9/9f/Vimlogo.svg/240px-Vimlogo.svg.png)
+<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/9f/Vimlogo.svg/240px-Vimlogo.svg.png" alt="Vim Logo" title="Vim" height="180">
 
 Vim is a free and open-source, screen-based text editor program.
 
@@ -339,7 +333,7 @@ Let’s start by create a custom set of defined constants.
 
 ✏️ `/etc/apache2/conf-custom/constants.conf`
 
-```apache
+```apacheconf
 Define APACHE_PORT 8085
 ```
 
@@ -347,7 +341,7 @@ Then include it in the main configuration file.
 
 ✏️ `/etc/apache2/apache2.conf`
 
-```apache
+```apacheconf
 # Global configuration
 #
 
@@ -357,7 +351,7 @@ include conf-custom/constants.conf
 Now, the defined constants can be called within any Apache configuration file.
 
 ✏️ `/etc/apache2/ports.conf`
-```apache
+```apacheconf
 # If you just change the port or add more ports here, you will likely also have to change the VirtualHost statement in /etc/apache2/sites-enabled/000-default.conf
 Listen ${APACHE_PORT}
 
@@ -371,7 +365,8 @@ Listen ${APACHE_PORT}
 ```
 
 ✏️ `/etc/apache2/conf-available/charset.conf`
-```apache
+
+```apacheconf
 # Read the documentation before enabling AddDefaultCharset.
 # In general, it is only a good idea if you know that all your files have this encoding. It will override any encoding given in the files in meta http-equiv or xml encoding tags.
 
@@ -384,7 +379,8 @@ AddDefaultCharset UTF-8
 * `TraceEnable Off`
 
 ✏️ `/etc/apache2/conf-custom/wordpress.conf`
-```apache
+
+```apacheconf
 <IfModule mod_rewrite.c>
 	RewriteEngine On
 	RewriteBase /
@@ -666,7 +662,7 @@ Add a mod for factcgi in apache.
 
 ✏️ `/etc/apache2/mods-enabled/fastcgi.conf`
 
-```apache
+```apacheconf
 <IfModule mod_fastcgi.c>
 	AddHandler fastcgi-script .fcgi
 	FastCgiIpcDir /var/lib/apache2/fastcgi
@@ -708,6 +704,8 @@ Once everything is working, configure your php instance.
 * `date.timezone = Europe/Paris`
 
 ### 3.3.2 Composer
+
+<img src="https://getcomposer.org/img/logo-composer-transparent4.png" alt="Composer Logo" width="180"/>
 
 Now that php is available in the command line, install composer
 
@@ -772,6 +770,8 @@ npm install -g npm-check-updates
 ```
 
 ### 3.4.2 PM2
+
+<img src="https://pm2.keymetrics.io/assets/pm2-logo-1.png" alt="PM2 Logo" width="280"/>
 
 PM2 is a production process manager for Node.js applications with a built-in load balancer. It allows you to keep applications alive forever, to reload them without downtime and to facilitate common system admin tasks.
 
@@ -907,7 +907,7 @@ mysql_secure_installation
 
 Create an admin utilisator for external connections.
 
-```console
+```sql
 mysql -u root -p
 CREATE USER 'user'@'localhost' IDENTIFIED BY 'password';
 GRANT ALL PRIVILEGES ON *.* TO 'user'@'localhost' WITH GRANT OPTION;
@@ -1025,6 +1025,8 @@ go version
 
 ## 6.2 Install Webhook
 
+![Webhook logo](https://raw.githubusercontent.com/adnanh/webhook/development/docs/logo/logo-128x128.png)
+
 **[💡 Documentation (github.com/adnanh)](https://github.com/adnanh/webhook)**
 
 ```console
@@ -1077,7 +1079,7 @@ Let’s create a service file:
 
 ✏️ `/opt/webhook/webhook.service`:
 
-```apache
+```ini
 [Unit]
 Description=Webhook Custom Service
 After=network.target
@@ -1106,6 +1108,8 @@ Every change made will be automatically taken in account, so you don’t have to
 **[💡 Documentation (github.com/adnanh/webhook/discussions/562)](https://github.com/adnanh/webhook/discussions/562)**
 
 # 7 Mail server
+
+<img src="https://cdn-icons-png.flaticon.com/512/564/564792.png" alt="Mail logo" width="200">
 
 This configuration will create a full mailing system, with users, aliases and antispam, using mysql.
 
@@ -1141,14 +1145,14 @@ apt install -y dovecot-core dovecot-mysql dovecot-pop3d dovecot-imapd dovecot-ma
 
 Connect to mysql to create a database.
 
-```bash
+```sql
 mysql -u root -p
 CREATE DATABASE mailserver;
 ```
 
 Then, we’ll need to create a specific user with readonly rights to check the email addresses. Here, it will be named `mailserver` too. To prevent issues with access, use `127.0.0.1` instead of `localhost`.
 
-```bash
+```sql
 CREATE USER 'mailserver'@'127.0.0.1' IDENTIFIED BY 'password';
 GRANT SELECT ON mailserver.* TO 'mailserver'@'127.0.0.1';
 FLUSH PRIVILEGES;
@@ -1190,7 +1194,7 @@ CREATE TABLE IF NOT EXISTS `virtual_aliases` (
 
 ✏️ `/etc/postfix/conf/mysql-virtual-mailbox-domains.cf`
 
-```apache
+```ini
 user = mailserver
 password = password
 hosts = 127.0.0.1
@@ -1211,7 +1215,7 @@ Then, create the mapping for mailboxes.
 
 ✏️ `/etc/postfix/conf/mysql-virtual-mailbox-maps.cf`
 
-```apache
+```ini
 user = mailserver
 password = password
 hosts = 127.0.0.1
@@ -1224,7 +1228,7 @@ And the mapping for aliases.
 ✏️ `/etc/postfix/conf/mysql-virtual-alias-maps.cf`
 
 
-```apache
+```ini
 user = mailserver
 password = password
 hosts = 127.0.0.1
@@ -1246,7 +1250,7 @@ Finally, create a file that will handle the catch all of aliases.
 
 ✏️ `/etc/postfix/conf/mysql-email2email.cf`
 
-```apache
+```ini
 user = mailserver
 password = password
 hosts = 127.0.0.1
@@ -1294,7 +1298,7 @@ Now there will be a few changes made to files in `/etc/dovecot/conf.d` folder.
 
 ✏️ `10-auth.conf`
 
-```apache
+```ini
 disable_plaintext_auth = no
 auth_mechanisms = plain login
 
@@ -1308,7 +1312,7 @@ auth_mechanisms = plain login
 
 ✏️ `10-mail.conf`
 
-```apache
+```ini
 mail_location = maildir:/var/mail/vhosts/%d/%n/Maildir
 
 #...
@@ -1318,7 +1322,7 @@ separator = .
 
 ✏️ `10-master.conf`
 
-```apache
+```ini
 service lmtp {
   unix_listener /var/spool/postfix/private/dovecot-lmtp {
     group = postfix
@@ -1339,7 +1343,7 @@ service auth {
 
 ✏️ `10-ssl.conf`
 
-```apache
+```ini
 ssl = required
 
 ssl_cert = </etc/letsencrypt/live/mywebsite.com/fullchain.pem
@@ -1348,7 +1352,7 @@ ssl_key = </etc/letsencrypt/live/mywebsite.com/privkey.pem
 
 ✏️ `10-ssl.conf`
 
-```apache
+```ini
 ssl = required
 
 ssl_cert = </etc/letsencrypt/live/mywebsite.com/fullchain.pem
@@ -1359,7 +1363,7 @@ Now, in the root folder of Dovecot.
 
 ✏️ `/etc/dovecot/dovecot-sql.conf.ext`
 
-```apache
+```ini
 driver = mysql
 default_pass_scheme = BLF-CRYP
 
@@ -1395,13 +1399,13 @@ systemctl restart dovecot
 
 ### 7.2.3 Set Postfix to send emails to Dovecot via LMTP
 
-```console
-postconf virtual_transport=lmtp:unix:private/dovecot-lmtp
+```ini
+virtual_transport=lmtp:unix:private/dovecot-lmtp
 ```
 
 ✏️ `/etc/dovecot/conf.d/20-lmtp.conf`
 
-```apache
+```ini
 protocol lmtp {
   # Space separated list of plugins to load (default is global mail_plugins).
   mail_plugins = $mail_plugins sieve
@@ -1433,24 +1437,24 @@ swaks --to mail@mywebsite.com --server localhost
 
 Enable SMTP authentification so that Postfix can communicate with Dovecot throught a socket.
 
-```console
-postconf smtpd_sasl_type=dovecot
-postconf smtpd_sasl_path=private/auth
-postconf smtpd_sasl_auth_enable=yes
+```ini
+smtpd_sasl_type=dovecot
+smtpd_sasl_path=private/auth
+smtpd_sasl_auth_enable=yes
 ```
 
-```console
-postconf smtp_tls_security_level = may
-postconf smtp_tls_CAfile = /etc/ssl/certs/ca-certificates.crt
-postconf smtpd_tls_security_level = may
-postconf smtpd_tls_cert_file = /etc/letsencrypt/live/mywebsite.com/fullchain.pem
-postconf smtpd_tls_key_file = /etc/letsencrypt/live/mywebsite.com/privkey.pem
-postconf smtpd_tls_auth_only = yes
+```ini
+smtp_tls_security_level = may
+smtp_tls_CAfile = /etc/ssl/certs/ca-certificates.crt
+smtpd_tls_security_level = may
+smtpd_tls_cert_file = /etc/letsencrypt/live/mywebsite.com/fullchain.pem
+smtpd_tls_key_file = /etc/letsencrypt/live/mywebsite.com/privkey.pem
+smtpd_tls_auth_only = yes
 ```
 
 ✏️ `/etc/postfix/master.cf`
 
-```apache
+```ini
 submission inet n       -       y       -       -       smtpd
   -o syslog_name=postfix/submission
   -o smtpd_tls_security_level=encrypt
@@ -1468,7 +1472,7 @@ submission inet n       -       y       -       -       smtpd
 
 ## 7.3 RSpamD & Redis
 
-![RSpamD](https://docs.rspamd.com/img/rspamd_logo_navbar.png)
+<img src="https://docs.rspamd.com/img/rspamd_logo_navbar.png" alt="RSpamD logo" height="200">
 
 Start by installing RSpamD and Redis.
 
@@ -1478,7 +1482,7 @@ apt install rspamd redis
 
 Configure Postfix so it uses it to pass mail through RSpamD filters.
 
-```
+```console
 postconf smtpd_milters=inet:127.0.0.1:11332
 postconf non_smtpd_milters=inet:127.0.0.1:11332
 postconf milter_mail_macros="i {mail_addr} {client_addr} {client_name} {auth_authen}"
@@ -1490,7 +1494,7 @@ To make sure that spam mails are treated as such, they must get a flag.
 
 ✏️ `/etc/rspamd/override.d/milter_headers.conf`
 
-```apache
+```ini
 extended_spam_headers = true;
 ```
 
@@ -1510,7 +1514,7 @@ Then, Dovecot must be configured to read these filters and transfer them to the 
 
 ✏️ `/etc/dovecot/conf.d/90-sieve.conf`
 
-```apache
+```ini
 sieve_after = /etc/dovecot/sieve-after
 ```
 
@@ -1524,7 +1528,7 @@ And add a new file in it:
 
 ✏️ `/etc/dovecot/sieve-after/spam-to-folder.sieve`
 
-```nginx
+```ini
 require ["fileinto"];
 
 if header :contains "X-Spam" "Yes" {
@@ -1545,7 +1549,7 @@ Now, configure Redis so that it persist data.
 
 ✏️ `/etc/rspamd/override.d/redis.conf`
 
-```apache
+```ini
 servers = "127.0.0.1";
 ```
 
@@ -1553,7 +1557,7 @@ And enable autolearn.
 
 ✏️ `/etc/rspamd/override.d/classifier-bayes.conf`
 
-```apache
+```ini
 autolearn = [-5, 10];
 ```
 
@@ -1561,13 +1565,13 @@ To enable learning from user actions, make a few changes in Dovecot.
 
 ✏️ `/etc/dovecot/conf.d/20-imap.conf`
 
-```apache
+```ini
 mail_plugins = $mail_plugins quota imap_sieve
 ```
 
 ✏️ `/etc/dovecot/conf.d/90-sieve.conf`
 
-```apache
+```ini
 # From elsewhere to Junk folder
 imapsieve_mailbox1_name = Junk
 imapsieve_mailbox1_causes = COPY
@@ -1593,7 +1597,7 @@ And new files:
 
 ✏️ `/etc/dovecot/sieve/learn-spam.sieve`
 
-```bash
+```ini
 require ["vnd.dovecot.pipe", "copy", "imapsieve"];
 pipe :copy "rspamd-learn-spam.sh";
 ```
@@ -1601,7 +1605,7 @@ pipe :copy "rspamd-learn-spam.sh";
 
 ✏️ `/etc/dovecot/sieve/learn-ham.sieve`
 
-```bash
+```ini
 require ["vnd.dovecot.pipe", "copy", "imapsieve", "variables"];
 if string "${mailbox}" "Trash" {
   stop;
@@ -1647,7 +1651,7 @@ Dovecot can remove emails in Junk folder after they reach a certain age.
 
 ✏️ `/etc/dovecot/conf.d/15-mailboxes.conf`
 
-```bash
+```ini
 mailbox Junk {
   special_use = \Junk
   auto = subscribe
@@ -1693,14 +1697,14 @@ customkey._domainkey 10800 IN TXT "v=DKIM1; k=rsa; p=<YOUR_PUBLICKEY>"
 
 ✏️ `/etc/rspamd/local.d/dkim_signing.conf`
 
-```apache
+```ini
 path = "/var/lib/rspamd/dkim/$domain.$selector.key";
 selector_map = "/etc/rspamd/dkim_selectors.map";
 ```
 
 ✏️ `/etc/rspamd/dkim_selectors.map`
 
-```apache
+```ini
 mywebsite.com customkey
 ```
 
@@ -1768,6 +1772,8 @@ A few tools to test your mail configuration:
 
 # 8 Security
 
+<img src="https://images.icon-icons.com/1852/PNG/512/iconfinder-firewallserver-4417121_116627.png" alt="Firewall logo" width="200">
+
 ## 8.1 UFW
 
 UFW is a firewall that provides a simple, easy-to-use interface for managing network.
@@ -1790,7 +1796,7 @@ if not, let’s create it:
 
 ✏️ `/etc/ufw/applications.d/openssh-server`:
 
-```bash
+```ini
 [OpenSSH]
 title=Secure shell server, an rshd replacement
 description=OpenSSH is a free implementation of the Secure Shell protocol.
@@ -1828,7 +1834,7 @@ If you have installed Webhook, let’s make a custom application rule (but it's 
 
 ✏️ `/etc/ufw/applications.d/webhook`
 
-```apache
+```ini
 [Webhook]
 title=Webhook Service
 description=Lightweight configurable tool written that allows you to easily create HTTP endpoints
@@ -1847,6 +1853,8 @@ ufw delete <number>
 ```
 
 ## 8.2 Fail2ban
+
+![Fail2ban logo](https://upload.wikimedia.org/wikipedia/commons/d/db/Fail2ban_logo.png)
 
 Fail2Ban is an intrusion prevention software framework that will lock IP out of the server.
 
@@ -1903,7 +1911,7 @@ If you want to use custom filters with fail2ban it's possible by creating new fi
 
 ## 8.3 CrowdSec
 
-<img src="https://github.com/crowdsecurity/crowdsec-docs/blob/main/crowdsec-docs/static/img/crowdsec_logo.png" alt="CrowdSec" title="CrowdSec" width="400" height="260"/>
+<img src="https://github.com/crowdsecurity/crowdsec-docs/blob/main/crowdsec-docs/static/img/crowdsec_logo.png?raw=true" alt="CrowdSec" title="CrowdSec" height="160">
 
 CrowdSec is an Alternative to Fail2Ban, that relies on participative security with crowdsourced protection against ip
 
@@ -2388,7 +2396,7 @@ apt install rsyslog
 
 ✏️ `/etc/rsyslog.conf`
 
-```bash
+```ini
 # Add at the end of the file
 # Send all logs to a central server (replace with your log server IP)
 *.* @logserver.yourdomain.com:514
@@ -2398,7 +2406,7 @@ apt install rsyslog
 
 ✏️ `/etc/logrotate.d/rsyslog`
 
-```bash
+```ini
 /var/log/syslog
 /var/log/mail.info
 /var/log/mail.warn
@@ -2426,13 +2434,11 @@ apt install rsyslog
 }
 ```
 
-# 10 FTP
-
 # 10 Services
 
 ## 10.1 Screenshot app (Monosnap, ShareX, etc.)
 
-![ShareX Logo](https://upload.wikimedia.org/wikipedia/commons/d/d1/ShareX_Logo.png)
+<img src="https://upload.wikimedia.org/wikipedia/commons/d/d1/ShareX_Logo.png" alt="ShareX Logo" title="ShareX" height="150">
 
 The point here is to define an access for a screenshot app to upload files in a specific directory via sftp.
 
@@ -2448,7 +2454,7 @@ Let’s allow the user to connect to ssh with a password. Edit the ssh config fi
 
 ✏️ `/etc/ssh/sshd_config`
 
-```bash
+```apacheconf
 # Example of overriding settings on a per-user basis
 Match User screenshot
 	PasswordAuthentication yes
@@ -2468,6 +2474,8 @@ chown -R screenshot:screenshot /path/to/folder/
 
 ## 10.2 VPN
 
+![OpenVPN Logo](https://upload.wikimedia.org/wikipedia/commons/thumb/f/f5/OpenVPN_logo.svg/330px-OpenVPN_logo.svg.png)
+
 ### 10.2.1 Installation
 
 Install OpenVPN
@@ -2483,7 +2491,7 @@ Add the ports defined to UFW. For example, with a custom script:
 
 ✏️ `/etc/ufw/applications.d/openvpn`
 
-```bash
+```ini
 [OpenVPN]
 title=OpenVPN Service
 description=Open Source VPN
@@ -2505,6 +2513,8 @@ Configuration files (`*.ovpn`) are written in `/root/`.
 
 ## 10.3 Auto saves via FTP
 
+<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/01/FileZilla_logo.svg/380px-FileZilla_logo.svg.png" alt="FileZilla Logo" title="FileZilla" height="150">
+
 ### 10.3.1 Install lftp
 
 ```console
@@ -2516,7 +2526,7 @@ apt install lftp
 In order not to write plain text mariadb credentials in scripts, create a file in `/root`:
 
 ✏️ `/root/.my.cnf`
-```apache
+```ini
 [client]
 user = your_mysql_user
 password = your_mysql_password
@@ -2533,7 +2543,7 @@ Same way, create a file to store the ftp credentials in `/root`. Be sure there i
 
 ✏️ `/root/.ftp_credentials`
 
-```apache
+```ini
 host=host
 user=user
 password=password
