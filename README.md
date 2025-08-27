@@ -1458,15 +1458,204 @@ submission inet n       -       y       -       -       smtpd
   -o smtpd_sender_restrictions=reject_sender_login_mismatch,permit_sasl_authenticated,reject
 ```
 
-## 7.3 RSpamD
+## 7.3 RSpamD & Redis
 
 ![RSpamD](https://docs.rspamd.com/img/rspamd_logo_navbar.png)
 
-
-Start by installing RSpamD.
+Start by installing RSpamD and Redis.
 
 ```console
-apt install rspamd
+apt install rspamd redis
+```
+
+Configure Postfix so it uses it to pass mail through RSpamD filters.
+
+```
+postconf smtpd_milters=inet:127.0.0.1:11332
+postconf non_smtpd_milters=inet:127.0.0.1:11332
+postconf milter_mail_macros="i {mail_addr} {client_addr} {client_name} {auth_authen}"
+```
+
+### 7.3.1 Flag spam
+
+To make sure that spam mails are treated as such, they must get a flag.
+
+✏️ `/etc/rspamd/override.d/milter_headers.conf`
+
+```apache
+extended_spam_headers = true;
+```
+
+You can test RSpamD configuration with this command:
+
+```console
+rspamadm configtest
+```
+
+And restart it to get the new configuration.
+
+```console
+systemctl restart rspamd
+```
+
+Then, Dovecot must be configured to read these filters and transfer them to the spam folder.
+
+✏️ `/etc/dovecot/conf.d/90-sieve.conf`
+
+```apache
+sieve_after = /etc/dovecot/sieve-after
+```
+
+Create said folder:
+
+```console
+mkdir /etc/dovecot/sieve-after
+```
+
+And add a new file in it:
+
+✏️ `/etc/dovecot/sieve-after/spam-to-folder.sieve`
+
+```nginx
+require ["fileinto"];
+
+if header :contains "X-Spam" "Yes" {
+ fileinto "Junk";
+ stop;
+}
+```
+
+Then compile it so that Dovecot can read it.:
+
+```console
+sievec /etc/dovecot/sieve-after/spam-to-folder.sieve
+```
+
+### 7.3.2 Learning
+
+Now, configure Redis so that it persist data.
+
+✏️ `/etc/rspamd/override.d/redis.conf`
+
+```apache
+servers = "127.0.0.1";
+```
+
+And enable autolearn.
+
+✏️ `/etc/rspamd/override.d/classifier-bayes.conf`
+
+```apache
+autolearn = [-5, 10];
+```
+
+To enable learning from user actions, make a few changes in Dovecot.
+
+✏️ `/etc/dovecot/conf.d/20-imap.conf`
+
+```apache
+mail_plugins = $mail_plugins quota imap_sieve
+```
+
+✏️ `/etc/dovecot/conf.d/90-sieve.conf`
+
+```apache
+# From elsewhere to Junk folder
+imapsieve_mailbox1_name = Junk
+imapsieve_mailbox1_causes = COPY
+imapsieve_mailbox1_before = file:/etc/dovecot/sieve/learn-spam.sieve
+
+# From Junk folder to elsewhere
+imapsieve_mailbox2_name = *
+imapsieve_mailbox2_from = Junk
+imapsieve_mailbox2_causes = COPY
+imapsieve_mailbox2_before = file:/etc/dovecot/sieve/learn-ham.sieve
+
+sieve_pipe_bin_dir = /etc/dovecot/sieve
+sieve_global_extensions = +vnd.dovecot.pipe
+sieve_plugins = sieve_imapsieve sieve_extprograms
+```
+
+Then create a new folder:
+
+```console
+mkdir /etc/dovecot/sieve
+```
+And new files:
+
+✏️ `/etc/dovecot/sieve/learn-spam.sieve`
+
+```bash
+require ["vnd.dovecot.pipe", "copy", "imapsieve"];
+pipe :copy "rspamd-learn-spam.sh";
+```
+
+
+✏️ `/etc/dovecot/sieve/learn-ham.sieve`
+
+```bash
+require ["vnd.dovecot.pipe", "copy", "imapsieve", "variables"];
+if string "${mailbox}" "Trash" {
+  stop;
+}
+pipe :copy "rspamd-learn-ham.sh";
+```
+
+Compile the files:
+
+```console
+sievec /etc/dovecot/sieve/learn-spam.sieve
+sievec /etc/dovecot/sieve/learn-ham.sieve
+```
+
+Finally, create two bash files:
+
+✏️ `/etc/dovecot/sieve/rspamd-learn-spam.sh`
+
+```bash
+#!/bin/sh
+exec /usr/bin/rspamc learn_spam
+```
+
+✏️ `/etc/dovecot/sieve/rspamd-learn-ham.sh`
+
+```bash
+#!/bin/sh
+exec /usr/bin/rspamc learn_ham
+```
+
+Make them executable:
+
+```console
+chmod u=rwx,go= /etc/dovecot/sieve/rspamd-learn-{spam,ham}.sh
+chown vmail:vmail /etc/dovecot/sieve/rspamd-learn-{spam,ham}.sh
+```
+
+And restart Dovecot.
+
+### 7.3.3 Autoexpunge
+
+Dovecot can remove emails in Junk folder after they reach a certain age.
+
+✏️ `/etc/dovecot/conf.d/15-mailboxes.conf`
+
+```bash
+mailbox Junk {
+  special_use = \Junk
+  auto = subscribe
+  autoexpunge = 30d
+}
+mailbox Trash {
+  special_use = \Trash
+  auto = subscribe
+  autoexpunge = 30d
+}
+```
+
+Finally, restart Dovecot and RSpamD.
+
+```console
+systemctl restart dovecot rspamd
 ```
 
 ## 7.4 DKIM
@@ -1474,140 +1663,67 @@ apt install rspamd
 DKIM is a signature authentification for mailing. It prevent mails from ending into spam folders.
 
 ```console
-apt install opendkim opendkim-tools spamass-milter
+mkdir /var/lib/rspamd/dkim
+chown _rspamd:_rspamd /var/lib/rspamd/dkim
 ```
 
-Let’s configure the file opendkim.conf file, by adding this at the end:
+### 7.4.1 Prepare records
 
-✏️ `/etc/opendkim.conf`
-
-```bash
-AutoRestart             Yes
-AutoRestartRate         10/1h
-UMask                   007
-Syslog                  yes
-SyslogSuccess           Yes
-LogWhy                  Yes
-
-Canonicalization        relaxed/simple
-
-ExternalIgnoreList      refile:/etc/opendkim/TrustedHosts
-InternalHosts           refile:/etc/opendkim/TrustedHosts
-KeyTable                refile:/etc/opendkim/KeyTable
-SigningTable            refile:/etc/opendkim/SigningTable
-
-Mode                    sv
-PidFile                 /run/opendkim/opendkim.pid
-SignatureAlgorithm      rsa-sha256
-
-UserID                  opendkim:opendkim
-
-Socket                  inet:12301@localhost
-```
-
-Then create the folders:
-
-```bash
-mkdir /etc/opendkim
-mkdir /etc/opendkim/keys
-```
-
-✏️ `/etc/default/openkimd`
-
-```bash
-smtpd_milters = unix:/spamass/spamass.sock, inet:localhost:12301
-non_smtpd_milters = unix:/spamass/spamass.sock, inet:localhost:12301
-```
-
-> 🔺In the next steps, `mail` is going to be a reference to the selector. In this example, the target mail address would be `mail@yourdomain.com`. It could be changed to anything, but be sure to keep the selector of your choice and use it in replacement for `mail` in every step.
-
-And finally, each configuration files:
-
-✏️ `/etc/opendkim/TrustedHosts`
+Create a new private key.
 
 ```console
-127.0.0.1
-localhost
-192.168.0.1/24
-*.yourdomain.com
-```
-
-✏️ `/etc/opendkim/KeyTable`
-
-```console
-mail._domainkey.yourdomain.com yourdomain.com:mail:/etc/opendkim/keys/yourdomain.com/mail.private
-```
-
-✏️ `/etc/opendkim/SigningTable`
-
-```console
-*@yourdomain.com mail._domainkey.yourdomain.com
-```
-
-When using spamassassin, change the option in spamass-milter:
-
-✏️ `/etc/default/spamass-milter`
-
-```bash
-OPTIONS="-u spamass-milter -i 127.0.0.1 -m -I -- --socket=/var/run/spamassassin/spamd.sock"
-```
-
-Next step is generating a key pair:
-
-```console
-cd /etc/opendkim/keys
-mkdir yourdomain.com
-cd yourdomain.com
-opendkim-genkey -s mail -d yourdomain.com
-```
-This will generate `mail.private` and `mail.txt`, which contains the public key you need to note.
-
-You need to set the owner on the private file.
-
-```console
-chown opendkim:opendkim mail.private
-```
-
-Now restart opendkim to reload the configuration:
-
-```console
-systemctl restart opendkim
+rspamadm dkim_keygen -d mywebsite.com -s customkey
 ```
 
 Then, you need to create a new DNS record.
 
 ```
-mail._domainkey 10800 IN TXT "v=DKIM1; k=rsa; p=<YOUR_PUBLICKEY>"
+customkey._domainkey 10800 IN TXT "v=DKIM1; k=rsa; p=<YOUR_PUBLICKEY>"
 ```
 
-## 7.5 DMARC
+### 7.4.2 Mapping in RSpamD
+
+✏️ `/etc/rspamd/local.d/dkim_signing.conf`
+
+```apache
+path = "/var/lib/rspamd/dkim/$domain.$selector.key";
+selector_map = "/etc/rspamd/dkim_selectors.map";
+```
+
+✏️ `/etc/rspamd/dkim_selectors.map`
+
+```apache
+mywebsite.com customkey
+```
+
+Create a file that will store the private key created earlier.
+
+✏️ `/var/lib/rspamd/dkim/mywebsite.com.customkey.key`
+
+And make sure that RSpamD y a accès.
 
 ```console
-apt install opendmarc
+chown _rspamd /var/lib/rspamd/dkim/*
+chmod u=r,go= /var/lib/rspamd/dkim/*
 ```
 
-✏️ `/etc/opendmarc.conf`
-
-```bash
-Socket inet:54321@localhost
-```
-
-✏️ `/etc/postfix/main.cf`
-
-```
-smtpd_milters = inet:localhost:12301 inet:localhost:54321
-non_smtpd_milters = inet:localhost:12301 inet:localhost:54321
-```
+Then, restart RSpamD.
 
 ```console
-systemctl restart opendmarc
-systemctl restart postfix
+systemctl restart rspamd
 ```
+
+## 7.5 SPF & DMARC
+
 
 DNS:
 
 ```console
-_dmarc.yourdomain.com 3600 IN TXT "v=DMARC1;p=quarantine;pct=100;rua=mailto:youradress@yourdomain.com;ruf=mailto:forensik@yourdomain.com;adkim=s;aspf=r"
+@ 14400 IN TXT "v=spf1 mx a ptr ip4:<server ip> include:_spf.google.com ~all"
+```
+
+```console
+_dmarc.mywebsite.com 3600 IN TXT "v=DMARC1;p=quarantine;pct=100;rua=mailto:mail@mywebsite.com;ruf=mailto:forensik@mywebsite.com;adkim=s;aspf=r"
 ```
 
 ## 7.6 Automatic renewal of certificate
