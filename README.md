@@ -1953,8 +1953,10 @@ cscli bouncers list
 **Watching services**
 
 ```console
+cscli collections install crowdsecurity/sshd
 cscli collections install crowdsecurity/nginx
 cscli collections install crowdsecurity/postfix
+cscli collections install crowdsecurity/dovecot
 systemctl restart crowdsec
 ```
 
@@ -2572,7 +2574,7 @@ chmod 600 /root/.ftp_credentials
 Make them excutable:
 
 ```console
-chown +x /opt/backups/*
+chmod +x /opt/backups/*
 ```
 
 Each script can be executed manually. Let’s automate it:
