@@ -894,7 +894,18 @@ It is built upon the values of performance, stability, and openness, and MariaDB
 
 ### 4.1.1 Install
 
+Debian 12 comes with MariaDB 10.11, in order to use a later version, add the repository to the source list.
+
+```
+curl -LsSo /tmp/mariadb_repo_setup https://downloads.mariadb.com/MariaDB/mariadb_repo_setup
+bash /tmp/mariadb_repo_setup --mariadb-server-version="mariadb-12.2"
+```
+It will automatically create `/etc/apt/sources.list.d/mariadb.list` and import the GPG key.
+
+Then, proceed to install the server and client:
+
 ```console
+apt update
 apt install mariadb-server mariadb-client
 ```
 
