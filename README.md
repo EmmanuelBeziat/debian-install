@@ -1781,6 +1781,25 @@ A few tools to test your mail configuration:
 * [MXToolbox](https://mxtoolbox.com/SuperTool.aspx)
 * [MailTester](https://www.mail-tester.com/)
 
+
+## 7.8 Create a new email
+
+Basic commands for creating new domains, users and aliases.
+
+```sql
+-- Add a new domain
+INSERT INTO virtual_domains (name) VALUES ('mydomain.com');
+
+-- Add a new user
+INSERT INTO virtual_users (domain_id, email, password)
+VALUES (1, 'user@mydomain.com', ENCRYPT('password', CONCAT('$6$', SUBSTRING(SHA(RAND()), -16))));
+
+-- Add a new alias
+INSERT INTO virtual_aliases (domain_id, source, destination)
+VALUES (1, 'contact@mydomain.com', 'user@mydomain.com');
+```
+
+
 # 8 Security
 
 <img src="https://images.icon-icons.com/1852/PNG/512/iconfinder-firewallserver-4417121_116627.png" alt="Firewall logo" width="200">
