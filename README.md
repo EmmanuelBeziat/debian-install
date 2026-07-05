@@ -1723,7 +1723,7 @@ Create a file that will store the private key created earlier.
 
 ✏️ `/var/lib/rspamd/dkim/mywebsite.com.customkey.key`
 
-And make sure that RSpamD y a accès.
+And make sure that RSpamD can access it.
 
 ```console
 chown _rspamd /var/lib/rspamd/dkim/*
