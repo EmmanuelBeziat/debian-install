@@ -2621,5 +2621,5 @@ crontab -e
 0 0 */2 * * /opt/backups/backup-db.sh >> /var/log/backups.log 2>&1
 0 0 1 */3 * /opt/backups/backup-sites.md >> /var/log/backups.log 2>&1
 0 0 1 */6 * /opt/backups/backup-config.md >> /var/log/backups.log 2>&1
-0 0 1 */6 * /opt/backups/backup-mails.md >> /var/log/backups.log 2>&1
+0 0 */2 * * /opt/backups/backup-mails.md >> /var/log/backups.log 2>&1
 ```
