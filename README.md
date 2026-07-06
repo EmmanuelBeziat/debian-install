@@ -68,6 +68,14 @@ If help is needed for one of the following commands, use https://explainshell.co
   - [7.6 Automatic Certificate renewal](#76-automatic-renewal-of-certificate)
   - [7.7 Testing](#77-testing)
     - [7.7.1 Useful tools](#771-useful-tools)
+  - [7.8 Create a new email](#78-create-a-new-email)
+	- [7.8.1 DNS](#781-dns)
+	- [7.8.2 Database](#782-database)
+	- [7.8.3 SSL certificate](#783-ssl-certificate)
+	- [7.8.4 DKIM](#784-dkim)
+	- [7.8.5 Dovecot](#785-dovecot)
+	- [7.8.6 Postfix](#786-postfix)
+	- [7.8.7 Verification](#787-verification)
 - [8 Security](#8-security)
   - [8.1 UFW](#81-ufw)
   - [8.2 Fail2ban](#82-fail2ban)
@@ -1497,10 +1505,6 @@ Then, generate the index table for Postfix.
 postmap -F hash:/etc/postfix/sni_maps
 ```
 
-
-```console
-
-
 ## 7.3 RSpamD & Redis
 
 <img src="https://docs.rspamd.com/img/rspamd_logo_navbar.png" alt="RSpamD logo" height="200">
@@ -1804,6 +1808,16 @@ A few tools to test your mail configuration:
 
 ## 7.8 Create a new email
 
+Here’s how to create a full new email domain address.
+
+### 7.8.1 DNS
+
+```
+@ 86400 IN MX 10 mywebsite.com
+@ 10800 IN TXT "v=spf1 mx a ptr ip4:<server ip> include:_spf.google.com ~all"
+```
+### 7.8.2 Database
+
 Basic commands for creating new domains, users and aliases.
 
 ```sql
@@ -1818,6 +1832,87 @@ VALUES (1, 'user@mywebsite.com', ENCRYPT('password', CONCAT('$6$', SUBSTRING(SHA
 INSERT INTO virtual_aliases (domain_id, source, destination)
 VALUES (1, 'contact@mywebsite.com', 'user@mywebsite.com');
 ```
+
+### 7.8.3 SSL certificate
+
+The domain needs its own LetsEncrypt certificate (usually already generated if the website runs on HTTPS). Check with:
+
+```console
+certbot certificates
+```
+
+If missing, generate it (see 5.1).
+
+### 7.8.4 DKIM
+
+```console
+rspamadm dkim_keygen -d newdomain.com -s <customkey>
+```
+
+Save the private key for later, then add the resulting DNS TXT record:
+
+```
+<customkey>._domainkey 10800 IN TXT "v=DKIM1; k=rsa; p=<YOUR_PUBLICKEY>"
+```
+
+Add the entry to the RSpamD mapping:
+
+✏️ `/etc/rspamd/dkim_selectors.map`
+
+```ini
+newdomain.com <customkey>
+```
+
+```console
+systemctl restart rspamd
+```
+
+### 7.8.5 Dovecot
+
+✏️ `/etc/dovecot/conf.d/10-ssl.conf`
+
+Add a `local_name` block for the new domain:
+
+```ini
+local_name newdomain.com {
+  ssl_cert = </etc/letsencrypt/live/newdomain.com/fullchain.pem
+  ssl_key = </etc/letsencrypt/live/newdomain.com/privkey.pem
+}
+```
+
+```console
+systemctl restart dovecot
+```
+
+### 7.8.6 Postfix
+
+Add a line for the new domain (private key **before** the certificate):
+
+✏️ `/etc/postfix/sni_maps`
+```ini
+newdomain.com /etc/letsencrypt/live/newdomain.com/privkey.pem, /etc/letsencrypt/live/newdomain.com/fullchain.pem
+```
+
+Regenerate the indexed table:
+
+```console
+postmap -F hash:/etc/postfix/sni_maps
+```
+
+### 7.8.7 Verification
+
+```console
+# IMAP certificate
+openssl s_client -connect newdomain.com:993 -servername newdomain.com | openssl x509 -noout -subject
+
+# SMTP (submission) certificate
+openssl s_client -connect newdomain.com:587 -starttls smtp -servername newdomain.com | openssl x509 -noout -subject
+
+# Delivery test
+swaks --to user@newdomain.com --server localhost
+```
+
+The `subject` returned must match `newdomain.com` in both cases, not the server’s default domain.
 
 
 # 8 Security
