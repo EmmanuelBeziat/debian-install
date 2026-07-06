@@ -1692,16 +1692,16 @@ chown _rspamd:_rspamd /var/lib/rspamd/dkim
 
 ### 7.4.1 Prepare records
 
-Create a new private key.
+Create a new private key, and store it for later use. <customkey> would be the mail you want to use, that would make <customkey>@<mywebsite.com>.
 
 ```console
-rspamadm dkim_keygen -d mywebsite.com -s customkey
+rspamadm dkim_keygen -d <mywebsite.com> -s <customkey>
 ```
 
 Then, you need to create a new DNS record.
 
 ```
-customkey._domainkey 10800 IN TXT "v=DKIM1; k=rsa; p=<YOUR_PUBLICKEY>"
+<customkey>._domainkey 10800 IN TXT "v=DKIM1; k=rsa; p=<YOUR_PUBLICKEY>"
 ```
 
 ### 7.4.2 Mapping in RSpamD
@@ -1716,12 +1716,12 @@ selector_map = "/etc/rspamd/dkim_selectors.map";
 ✏️ `/etc/rspamd/dkim_selectors.map`
 
 ```ini
-mywebsite.com customkey
+<mywebsite.com> <customkey>
 ```
 
 Create a file that will store the private key created earlier.
 
-✏️ `/var/lib/rspamd/dkim/mywebsite.com.customkey.key`
+✏️ `/var/lib/rspamd/dkim/<mywebsite.com>.<customkey>.key`
 
 And make sure that RSpamD can access it.
 
@@ -1746,7 +1746,7 @@ DNS:
 ```
 
 ```console
-_dmarc.mywebsite.com 3600 IN TXT "v=DMARC1;p=quarantine;pct=100;rua=mailto:mail@mywebsite.com;ruf=mailto:forensik@mywebsite.com;adkim=s;aspf=r"
+_dmarc.<mywebsite.com> 3600 IN TXT "v=DMARC1;p=quarantine;pct=100;rua=mailto:<customkey>@<mywebsite.com>;ruf=mailto:forensik@<mywebsite.com>;adkim=s;aspf=r"
 ```
 
 ## 7.6 Automatic renewal of certificate
@@ -1775,7 +1775,7 @@ apt install dnsutils mailutils
 
 A few tools to test your mail configuration:
 
-* The commands `dig TXT yourdomain` to check your SPF entry, and `dig contact._domainkey.yourdomain.com TXT` to check your DKIM.
+* The commands `dig TXT yourdomain` to check your SPF entry, and `dig <customkey>._domainkey.<mywebsite.com> TXT` to check your DKIM.
 * [DKIMcore](https://dkimcore.org/c/keycheck)
 * [Google Admin Tookbox CheckMX](https://toolbox.googleapps.com/apps/checkmx/)
 * [MXToolbox](https://mxtoolbox.com/SuperTool.aspx)
@@ -1788,15 +1788,15 @@ Basic commands for creating new domains, users and aliases.
 
 ```sql
 -- Add a new domain
-INSERT INTO virtual_domains (name) VALUES ('mydomain.com');
+INSERT INTO virtual_domains (name) VALUES ('mywebsite.com');
 
 -- Add a new user
 INSERT INTO virtual_users (domain_id, email, password)
-VALUES (1, 'user@mydomain.com', ENCRYPT('password', CONCAT('$6$', SUBSTRING(SHA(RAND()), -16))));
+VALUES (1, 'user@mywebsite.com', ENCRYPT('password', CONCAT('$6$', SUBSTRING(SHA(RAND()), -16))));
 
 -- Add a new alias
 INSERT INTO virtual_aliases (domain_id, source, destination)
-VALUES (1, 'contact@mydomain.com', 'user@mydomain.com');
+VALUES (1, 'contact@mywebsite.com', 'user@mywebsite.com');
 ```
 
 
