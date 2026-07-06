@@ -1458,10 +1458,12 @@ smtpd_sasl_auth_enable=yes
 smtp_tls_security_level = may
 smtp_tls_CAfile = /etc/ssl/certs/ca-certificates.crt
 smtpd_tls_security_level = may
-smtpd_tls_cert_file = /etc/letsencrypt/live/mywebsite.com/fullchain.pem
-smtpd_tls_key_file = /etc/letsencrypt/live/mywebsite.com/privkey.pem
+smtpd_tls_chain_files = /etc/letsencrypt/live/mywebsite.com/privkey.pem, /etc/letsencrypt/live/mywebsite.com/fullchain.pem
+tls_server_sni_maps = hash:/etc/postfix/sni_maps
 smtpd_tls_auth_only = yes
 ```
+
+```ini
 
 ✏️ `/etc/postfix/master.cf`
 
@@ -1480,6 +1482,24 @@ submission inet n       -       y       -       -       smtpd
   -o milter_macro_daemon_name=ORIGINATING
   -o smtpd_sender_restrictions=reject_sender_login_mismatch,permit_sasl_authenticated,reject
 ```
+
+Create the file `/etc/postfix/sni_maps`. It will be used to tell Postfix which certificate to use for which domain.
+
+```
+mywebsite.com /etc/letsencrypt/live/mywebsite.com/privkey.pem, /etc/letsencrypt/live/mywebsite.com/fullchain.pem
+```
+
+Simply add a new line for each domain.
+
+Then, generate the index table for Postfix.
+
+```console
+postmap -F hash:/etc/postfix/sni_maps
+```
+
+
+```console
+
 
 ## 7.3 RSpamD & Redis
 

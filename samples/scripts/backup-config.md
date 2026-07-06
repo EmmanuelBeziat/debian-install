@@ -32,6 +32,7 @@ CONFIG_FILES=(
     "/etc/letsencrypt/"
     "/etc/postfix/main.cf"
     "/etc/postfix/master.cf"
+    "/etc/postfix/sni_maps"
     "/etc/postfix/conf/"
     "/etc/redis/"
     "/etc/rspamd/local.d/"
