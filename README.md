@@ -1384,7 +1384,7 @@ Now, in the root folder of Dovecot.
 
 ```ini
 driver = mysql
-default_pass_scheme = BLF-CRYP
+default_pass_scheme = BLF-CRYPT
 
 connect = \
   host=127.0.0.1 \
@@ -1820,13 +1820,23 @@ Here’s how to create a full new email domain address.
 
 Basic commands for creating new domains, users and aliases.
 
+Generate a bcrypt password for the user:
+
+```console
+doveadm pw -s BLF-CRYPT -p 'password'
+```
+
+The output will be refered as `<password_hash>` in the mariadb commands next.
+
+Then, add the domain, user and alias to the database:
+
 ```sql
 -- Add a new domain
 INSERT INTO virtual_domains (name) VALUES ('mywebsite.com');
 
 -- Add a new user
 INSERT INTO virtual_users (domain_id, email, password)
-VALUES (1, 'user@mywebsite.com', ENCRYPT('password', CONCAT('$6$', SUBSTRING(SHA(RAND()), -16))));
+VALUES (1, 'user@mywebsite.com', '{BLF-CRYPT}<password_hash>');
 
 -- Add a new alias
 INSERT INTO virtual_aliases (domain_id, source, destination)
