@@ -27,10 +27,12 @@ If help is needed for one of the following commands, use https://explainshell.co
     - [3.1.1 Install](#311-install)
     - [3.1.2 Configuration](#312-configuration)
     - [3.1.3 VirtualHosts config](#313-virtualhosts-config)
+	- [3.1.4 Systemd service hardening](#314-systemd-service-hardening)
   - [3.2 Nginx](#32-nginx)
     - [3.2.1 Install](#321-install)
     - [3.2.2 Configuration](#322-configuration)
     - [3.2.3 VirtualHosts config](#323-virtualhosts-config)
+	- [3.2.4 Systemd service hardening](#324-systemd-service-hardening)
   - [3.3 PHP](#33-php)
     - [3.3.1 Installation](#331-installation)
     - [3.3.2 Composer](#332-composer)
@@ -42,6 +44,7 @@ If help is needed for one of the following commands, use https://explainshell.co
   - [4.1 MariaDB](#41-mariadb)
     - [4.1.1 Install](#411-install)
 	- [4.1.2 Create admin user](#412-create-admin-user)
+	- [4.1.3 Systemd service hardening](#413-systemd-service-hardening)
   - [4.2 Adminer](#44-adminer)
 - [5 SSL and HTTPS](#5-ssl-and-https)
   - [5.1 Certbot](#51-certbot)
@@ -87,6 +90,9 @@ If help is needed for one of the following commands, use https://explainshell.co
     - [8.3.2 Configuration](#832-configuration)
     - [8.3.3 Usage](#833-usage)
     - [8.3.4 Secure Access](#834-secure-acccess)
+  - [8.4 Lynis](#84-lynis)
+    - [8.4.1 Banner information disclosure](#841-banner-information-disclosure)
+	- [8.4.3 systemd service hardening](#843-systemd-service-hardening)
 - [9 Monitoring et Logs](#9-monitoring-et-logs)
   - [9.1 Netdata](#91-netdata)
     - [9.1.1 Installation](#911-installation)
@@ -229,7 +235,7 @@ service ssh restart
 Common tools
 
 ```console
-apt install -y software-properties-common gnupg2 curl wget zip unzip dos2unix jq dnsutils
+apt install -y software-properties-common gnupg2 curl wget zip unzip dos2unix jq dnsutils needrestart
 ```
 
 ## 2.1.1 git
@@ -419,6 +425,68 @@ a2enmod rewrite http2 mime ssl deflate env headers mpm_event deflate actions
 
 ```console
 systemctl restart apache2
+```
+
+```console
+systemctl edit <service>.service
+systemctl daemon-reload
+systemctl restart <service>.service
+```
+
+#### 3.1.4 Systemd service hardening
+
+Apache's master process must stay root. It forks workers that drop privileges to `www-data`, so `User=` cannot be hardened here. If Apache sits behind Nginx on an internal port (not 80/443 directly), it doesn't need `CAP_NET_BIND_SERVICE`.
+
+✏️ `/etc/systemd/system/apache2.service.d/override.conf`
+
+```ini
+[Service]
+# Kernel / hardware
+PrivateDevices=true
+ProtectClock=true
+ProtectKernelLogs=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+ProtectHostname=true
+
+# Namespaces / misc
+RestrictNamespaces=true
+LockPersonality=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+UMask=0027
+
+# Network
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+
+# Capabilities
+CapabilityBoundingSet=CAP_SETUID CAP_SETGID CAP_CHOWN CAP_DAC_OVERRIDE CAP_FOWNER CAP_KILL CAP_SYS_RESOURCE
+
+# Filesystem — adjust ReadWritePaths to actual vhost/log/cache locations
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/www /var/log/apache2 /var/lib/apache2 /run/apache2
+
+# Syscalls
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@clock @debug @module @mount @reboot @swap @raw-io
+SystemCallFilter=setgroups setgroups32 setuid setuid32 setgid setgid32 setresuid setresuid32 setresgid setresgid32 setreuid setreuid32 setregid setregid32
+```
+
+The `setgroups`/`setuid`/`setgid` allowlist is required for any web server whose master process drops privileges to a worker user — omitting it causes workers to be killed mid-request (visible as `504` after a long hang, not an immediate failure).
+
+If vhosts use symlinks pointing outside their docroot, check where they resolve before finalizing `ReadWritePaths`:
+
+```console
+find /var/www -maxdepth 2 -type l -exec readlink -f {} \;
+```
+
+```console
+systemctl daemon-reload
+systemctl restart apache2.service
 ```
 
 ## 3.2 Nginx
@@ -638,6 +706,57 @@ nginx -t
 systemctl restart nginx
 ```
 
+### 3.2.4 Systemd service hardening
+
+Unlike an internal Apache, Nginx typically binds 80/443 directly and terminates TLS — it needs `CAP_NET_BIND_SERVICE`. Apply the same privilege-drop syscall allowlist as Apache from the start.
+
+✏️ `/etc/systemd/system/nginx.service.d/override.conf`
+
+```ini
+[Service]
+# Kernel / hardware
+PrivateDevices=true
+ProtectClock=true
+ProtectKernelLogs=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+ProtectHostname=true
+
+# Namespaces / misc
+RestrictNamespaces=true
+LockPersonality=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+UMask=0027
+
+# Filesystem
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/log/nginx /run /var/lib/nginx /var/cache/nginx
+
+# Network
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+
+# Capabilities
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE CAP_SETUID CAP_SETGID CAP_CHOWN CAP_DAC_OVERRIDE CAP_FOWNER CAP_KILL CAP_SYS_RESOURCE
+
+# Syscalls
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@clock @debug @module @mount @reboot @swap @raw-io
+SystemCallFilter=setgroups setgroups32 setuid setuid32 setgid setgid32 setresuid setresuid32 setresgid setresgid32 setreuid setreuid32 setregid setregid32
+```
+
+Test both normal traffic and a config reload/cert renewal path, since it exercises different code (file reopen, socket rebind) than regular requests:
+
+```console
+systemctl daemon-reload
+nginx -t && systemctl reload nginx
+journalctl -k --since "2 minutes ago" | grep -i audit
+```
+
 ## 3.3 PHP
 
 ![PHP](https://upload.wikimedia.org/wikipedia/commons/thumb/2/27/PHP-logo.svg/320px-PHP-logo.svg.png)
@@ -710,6 +829,8 @@ Once everything is working, configure your php instance.
 * `post_max_size = 512M`
 * `upload_max_filesize = 512M`
 * `date.timezone = Europe/Paris`
+
+
 
 ### 3.3.2 Composer
 
@@ -931,6 +1052,57 @@ mysql -u root -p
 CREATE USER 'user'@'localhost' IDENTIFIED BY 'password';
 GRANT ALL PRIVILEGES ON *.* TO 'user'@'localhost' WITH GRANT OPTION;
 FLUSH PRIVILEGES;
+```
+
+### 4.1.3 Systemd service hardening
+
+MariaDB already runs as the `mysql` user (not root) by default, so it needs no capability for privilege dropping. Check the actual `datadir`/socket path before setting `ReadWritePaths`:
+
+```console
+grep -E "datadir|socket" /etc/mysql/mariadb.conf.d/50-server.cnf
+```
+
+✏️ `/etc/systemd/system/mariadb.service.d/override.conf`
+
+```ini
+[Service]
+# Privileges
+NoNewPrivileges=true
+AmbientCapabilities=
+RemoveIPC=true
+
+# Kernel / hardware
+PrivateDevices=true
+ProtectClock=true
+ProtectKernelLogs=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+ProtectHostname=true
+
+# Filesystem
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+RestrictSUIDSGID=true
+ReadWritePaths=/var/lib/mysql /run/mysqld /var/log/mysql
+
+# Namespaces / syscalls / memory
+RestrictNamespaces=true
+LockPersonality=true
+SystemCallArchitectures=native
+MemoryDenyWriteExecute=true
+
+# Network
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+
+# Capabilities
+CapabilityBoundingSet=CAP_CHOWN CAP_DAC_OVERRIDE CAP_FOWNER CAP_SETGID CAP_SETUID CAP_SYS_RESOURCE
+```
+
+```console
+systemctl daemon-reload
+systemctl restart mariadb.service
 ```
 
 ## 4.2 Adminer
@@ -1705,6 +1877,46 @@ Finally, restart Dovecot and RSpamD.
 systemctl restart dovecot rspamd
 ```
 
+### 7.3.4 Redis security
+
+Even when Redis is bound to loopback only, set a password — it protects against other local processes or a compromised service reaching it, which matters since Redis backs RSpamD's Bayesian classifier here.
+
+Confirm the bind first:
+
+```console
+grep -E "^bind|^protected-mode" /etc/redis/redis.conf
+ss -tlnp | grep 6379
+```
+
+Should show `bind 127.0.0.1 -::1`, `protected-mode yes`, and no listener on a public IP.
+
+```console
+openssl rand -base64 32
+```
+
+✏️ `/etc/redis/redis.conf`
+
+```ini
+requirepass
+rename-command CONFIG ""
+```
+
+Update every local client with the new password. For RSpamD:
+
+✏️ `/etc/rspamd/override.d/redis.conf`
+```ini
+password = "<same-password>";
+```
+
+```console
+systemctl restart redis-server
+redis-cli -a <password> ping
+systemctl restart rspamd
+rspamadm configtest
+```
+
+Send a test email afterward to confirm spam filtering (which relies on the Bayesian classifier in Redis) still works.
+
 ## 7.4 DKIM
 
 DKIM is a signature authentification for mailing. It prevent mails from ending into spam folders.
@@ -1761,7 +1973,6 @@ systemctl restart rspamd
 ```
 
 ## 7.5 SPF & DMARC
-
 
 DNS:
 
@@ -2168,6 +2379,63 @@ Then restart CrowdSec and check if the IP is correctly whitelisted:
 systemctl restart crowdsec
 cscli decisions list
 ```
+
+## 8.4 Lynis
+
+Lynis (`https://cisofy.com/lynis/`) is an audit tool for servers.
+
+```console
+apt install lynis
+lynis audit system
+```
+Go through the warnings/suggestions and address them. Common findings on this setup and their fixes below.
+
+### 8.4.1 Banner information disclosure
+
+Hide service versions from banners to avoid handing attackers an easy fingerprint.
+
+**BIND** [NAME-4210]
+
+✏️ `/etc/bind/named.conf.options`
+
+```
+options {
+    ...
+    version "none";
+};
+```
+
+```console
+named-checkconf
+systemctl restart named
+```
+
+**Postfix** [MAIL-8818] — keep the FQDN required by RFC 5321, drop the OS/software disclosure.
+
+✏️ `/etc/postfix/main.cf`
+
+```
+smtpd_banner = $myhostname ESMTP
+```
+
+```console
+postfix reload
+```
+
+### 8.4.3 systemd service hardening
+
+`systemd-analyze security <service>` scores how many of systemd's sandboxing features (namespaces, capabilities, syscall filtering, filesystem isolation) a service uses — not whether it has a known vulnerability. Most stock Debian units score UNSAFE/EXPOSED by default since they ship without hardening directives.
+
+```console
+systemd-analyze security <service>.service
+```
+
+Apply hardening incrementally, restarting and checking for regressions between each group of directives, in this order:
+1. Kernel/namespace/filesystem directives (low risk)
+2. Capabilities (`CapabilityBoundingSet=`)
+3. Syscall filtering (`SystemCallFilter=`) — **highest risk**, apply last
+
+Never edit the vendor unit file directly. Use a drop-in override.
 
 # 9 Monitoring et Logs
 
