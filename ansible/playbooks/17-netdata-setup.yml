@@ -1,0 +1,60 @@
+- name: Netdata setup
+  hosts: servers
+  become: yes
+
+  tasks:
+    - name: Install Netdata
+      shell: |
+        bash <(curl -Ss https://my-netdata.io/kickstart.sh) --stable-channel --disable-telemetry
+      args:
+        creates: /usr/sbin/netdata
+
+    - name: Configure Netdata
+      template:
+        src: ../templates/etc/netdata/netdata.conf.j2
+        dest: /etc/netdata/netdata.conf
+        mode: '0644'
+      notify: restart netdata
+
+    - name: Create custom CPU alerts
+      copy:
+        dest: /etc/netdata/health.d/cpu.conf
+        content: |
+          template: 10min_cpu_usage
+                on: system.cpu
+              calc: $user + $system
+             every: 10s
+              warn: $this > (($status >= $WARNING)  ? (80) : (90))
+              crit: $this > (($status == $CRITICAL) ? (90) : (95))
+             delay: up 1m down 5m
+              info: average cpu utilization for the last 10 minutes
+                to: sysadmin
+        mode: '0644'
+      notify: restart netdata
+
+    - name: Create custom disk alerts
+      copy:
+        dest: /etc/netdata/health.d/disk.conf
+        content: |
+          template: disk_usage
+                on: disk.space
+             every: 1m
+              warn: $this < 20
+              crit: $this < 10
+             delay: up 1m down 5m
+              info: disk space usage
+                to: sysadmin
+        mode: '0644'
+      notify: restart netdata
+
+    - name: Ensure Netdata is enabled
+      systemd:
+        name: netdata
+        enabled: yes
+        state: started
+
+  handlers:
+    - name: restart netdata
+      service:
+        name: netdata
+        state: restarted

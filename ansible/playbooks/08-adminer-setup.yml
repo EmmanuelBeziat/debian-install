@@ -1,0 +1,31 @@
+- name: Adminer setup
+  hosts: servers
+  become: yes
+
+  vars:
+    adminer_path: "/var/www/adminer"
+
+  tasks:
+    - name: Create adminer directory
+      file:
+        path: "{{ adminer_path }}"
+        state: directory
+        owner: www-data
+        group: www-data
+        mode: '0755'
+
+    - name: Download Adminer
+      get_url:
+        url: "https://www.adminer.org/latest.php"
+        dest: "{{ adminer_path }}/adminer.php"
+        owner: www-data
+        group: www-data
+        mode: '0755'
+
+    - name: Download Adminer Dracula theme
+      get_url:
+        url: "https://raw.githubusercontent.com/vrana/adminer/master/designs/dracula/adminer.css"
+        dest: "{{ adminer_path }}/adminer.css"
+        owner: www-data
+        group: www-data
+        mode: '0644'

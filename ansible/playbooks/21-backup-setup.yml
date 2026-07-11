@@ -1,0 +1,67 @@
+- name: Backup setup
+  hosts: servers
+  become: yes
+
+  tasks:
+    - name: Install LFTP
+      apt:
+        name: lftp
+        state: present
+
+    - name: Create backup directory
+      file:
+        path: /opt/backups
+        state: directory
+        mode: '0755'
+
+    - name: Create MariaDB credentials file
+      template:
+        src: ../templates/root/.my.cnf.j2
+        dest: /root/.my.cnf
+        owner: root
+        group: root
+        mode: '0600'
+
+    - name: Create FTP credentials file
+      template:
+        src: ../templates/root/.ftp_credentials.j2
+        dest: /root/.ftp_credentials
+        owner: root
+        group: root
+        mode: '0600'
+
+    - name: Fix FTP credentials encoding
+      command: dos2unix /root/.ftp_credentials
+
+    - name: Deploy backup scripts
+      template:
+        src: ../templates/opt/backups/{{ item }}.j2
+        dest: /opt/backups/{{ item }}
+        owner: root
+        group: root
+        mode: '0755'
+      loop:
+        - backup-db.sh
+        - backup-config.sh
+        - backup-sites.sh
+        - backup-mails.sh
+
+    - name: Add backup cron tasks
+      cron:
+        name: "{{ item.name }}"
+        minute: "{{ item.minute }}"
+        hour: "{{ item.hour }}"
+        day: "{{ item.day }}"
+        month: "{{ item.month }}"
+        job: "{{ item.job }}"
+      loop:
+        - { name: 'backup-db', minute: '0', hour: '0', day: '*/2', month: '*', job: '/opt/backups/backup-db.sh >> /var/log/backups.log 2>&1' }
+        - { name: 'backup-sites', minute: '0', hour: '0', day: '1', month: '*/3', job: '/opt/backups/backup-sites.sh >> /var/log/backups.log 2>&1' }
+        - { name: 'backup-config', minute: '0', hour: '0', day: '1', month: '*/6', job: '/opt/backups/backup-config.sh >> /var/log/backups.log 2>&1' }
+        - { name: 'backup-mails', minute: '0', hour: '0', day: '*/2', month: '*', job: '/opt/backups/backup-mails.sh >> /var/log/backups.log 2>&1' }
+
+    - name: Create backup log directory
+      file:
+        path: /var/backups/server
+        state: directory
+        mode: '0755'

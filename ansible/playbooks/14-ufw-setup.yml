@@ -1,0 +1,93 @@
+- name: UFW firewall setup
+  hosts: servers
+  become: yes
+
+  tasks:
+    - name: Install UFW
+      apt:
+        name: ufw
+        state: present
+
+    - name: Create OpenSSH UFW profile
+      template:
+        src: ../templates/etc/ufw/applications.d/ufw-app.j2
+        dest: /etc/ufw/applications.d/openssh-server
+        mode: '0644'
+      vars:
+        app_title: "OpenSSH Server"
+        app_description: "OpenSSH is a free implementation of the Secure Shell protocol."
+        app_ports: "{{ ssh_port }}/tcp"
+
+    - name: Create OpenVPN UFW profile
+      template:
+        src: ../templates/etc/ufw/applications.d/ufw-app.j2
+        dest: /etc/ufw/applications.d/openvpn
+        mode: '0644'
+      vars:
+        app_title: "OpenVPN Server"
+        app_description: "Open Source VPN"
+        app_ports: "{{ openvpn_port | default(1194) }}/udp"
+
+    - name: Allow SSH
+      ufw:
+        rule: allow
+        name: OpenSSH Server
+
+    - name: Allow HTTP
+      ufw:
+        rule: allow
+        port: '80'
+        proto: tcp
+
+    - name: Allow HTTPS
+      ufw:
+        rule: allow
+        port: '443'
+        proto: tcp
+
+    - name: Allow SMTP
+      ufw:
+        rule: allow
+        port: '25'
+        proto: tcp
+
+    - name: Allow SMTP submission
+      ufw:
+        rule: allow
+        port: '587'
+        proto: tcp
+
+    - name: Allow IMAP
+      ufw:
+        rule: allow
+        port: '143'
+        proto: tcp
+
+    - name: Allow IMAPS
+      ufw:
+        rule: allow
+        port: '993'
+        proto: tcp
+
+    - name: Allow POP3
+      ufw:
+        rule: allow
+        port: '110'
+        proto: tcp
+
+    - name: Allow POP3S
+      ufw:
+        rule: allow
+        port: '995'
+        proto: tcp
+
+    - name: Allow OpenVPN
+      ufw:
+        rule: allow
+        name: OpenVPN Server
+      when: openvpn_port is defined
+
+    - name: Enable UFW
+      ufw:
+        state: enabled
+        policy: deny

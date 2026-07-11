@@ -1,0 +1,10 @@
+upstream apachephp {
+    server {{ server_ip }}:{{ apache_port }};
+}
+
+server {
+    charset utf-8;
+    source_charset utf-8;
+    override_charset on;
+    server_name localhost;
+}

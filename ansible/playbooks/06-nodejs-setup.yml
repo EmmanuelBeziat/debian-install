@@ -1,0 +1,77 @@
+- name: NodeJS setup
+  hosts: servers
+  become: yes
+
+  vars:
+    nvm_version: "0.40.1"
+
+  tasks:
+    - name: Install NVM
+      block:
+        - name: Download NVM installer
+          get_url:
+            url: "https://raw.githubusercontent.com/nvm-sh/nvm/v{{ nvm_version }}/install.sh"
+            dest: /tmp/install_nvm.sh
+            mode: '0755'
+
+        - name: Install NVM
+          command: bash /tmp/install_nvm.sh
+          args:
+            creates: "/root/.nvm/nvm.sh"
+
+        - name: Remove installer
+          file:
+            path: /tmp/install_nvm.sh
+            state: absent
+
+    - name: Install Node.js via NVM
+      become: yes
+      become_user: root
+      shell: |
+        export NVM_DIR="/root/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+        nvm install {{ node_default_version }}
+        nvm alias default {{ node_default_version }}
+      args:
+        executable: /bin/bash
+
+    - name: Update npm globally
+      become: yes
+      become_user: root
+      shell: |
+        export NVM_DIR="/root/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+        npm i -g npm@latest
+      args:
+        executable: /bin/bash
+
+    - name: Install global npm packages
+      become: yes
+      become_user: root
+      shell: |
+        export NVM_DIR="/root/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+        npm install -g {{ item }}
+      loop:
+        - npm-check-updates
+        - pm2
+      args:
+        executable: /bin/bash
+
+    - name: Setup PM2 startup
+      become: yes
+      become_user: root
+      shell: |
+        export NVM_DIR="/root/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+        pm2 startup
+      args:
+        executable: /bin/bash
+
+    - name: Create node-update script
+      template:
+        src: ../templates/usr/local/bin/node-update.j2
+        dest: /usr/local/bin/node-update
+        owner: root
+        group: root
+        mode: '0755'

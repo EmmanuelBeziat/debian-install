@@ -1,0 +1,3 @@
+dkim_domains:
+  - domain: "example.com"
+    selector: "mail"

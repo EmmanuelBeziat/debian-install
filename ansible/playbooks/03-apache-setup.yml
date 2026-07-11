@@ -1,0 +1,113 @@
+- name: Apache2 setup
+  hosts: servers
+  become: yes
+  
+  tasks:
+    - name: Install Apache2
+      apt:
+        name: apache2
+        state: present
+
+    - name: Create conf-custom directory
+      file:
+        path: /etc/apache2/conf-custom
+        state: directory
+        mode: '0755'
+
+    - name: Configure Apache constants
+      template:
+        src: ../templates/etc/apache2/constants.conf.j2
+        dest: /etc/apache2/conf-custom/constants.conf
+        mode: '0644'
+
+    - name: Include constants in main config
+      lineinfile:
+        path: /etc/apache2/apache2.conf
+        line: 'include conf-custom/constants.conf'
+        insertafter: '^# Global configuration'
+      notify: restart apache
+
+    - name: Configure Apache ports
+      template:
+        src: ../templates/etc/apache2/ports.conf.j2
+        dest: /etc/apache2/ports.conf
+        mode: '0644'
+      notify: restart apache
+
+    - name: Configure charset
+      copy:
+        dest: /etc/apache2/conf-available/charset.conf
+        content: |
+          AddDefaultCharset UTF-8
+        mode: '0644'
+      notify: restart apache
+
+    - name: Configure security
+      template:
+        src: ../templates/etc/apache2/security.conf.j2
+        dest: /etc/apache2/conf-available/security.conf
+        mode: '0644'
+      notify: restart apache
+
+    - name: Configure WordPress rewrite
+      template:
+        src: ../templates/etc/apache2/wordpress.conf.j2
+        dest: /etc/apache2/conf-custom/wordpress.conf
+        mode: '0644'
+
+    - name: Enable Apache configurations
+      command: "a2enconf {{ item }}"
+      loop:
+        - charset
+        - security
+      notify: restart apache
+
+    - name: Enable Apache modules
+      command: "a2enmod {{ item }}"
+      loop:
+        - rewrite
+        - http2
+        - mime
+        - ssl
+        - deflate
+        - env
+        - headers
+        - mpm_event
+        - actions
+        - fastcgi
+        - proxy_fcgi
+        - setenvif
+      notify: restart apache
+
+    - name: Systemd hardening for Apache
+      block:
+        - name: Create systemd override directory for Apache
+          file:
+            path: /etc/systemd/system/apache2.service.d
+            state: directory
+            mode: '0755'
+
+        - name: Deploy Apache systemd override
+          template:
+            src: ../templates/etc/systemd/system/apache2-override.conf.j2
+            dest: /etc/systemd/system/apache2.service.d/override.conf
+            mode: '0644'
+          notify:
+            - daemon-reload
+            - restart apache
+
+    - name: Ensure Apache is enabled on boot
+      systemd:
+        name: apache2
+        enabled: yes
+        state: started
+
+  handlers:
+    - name: daemon-reload
+      systemd:
+        daemon_reload: yes
+
+    - name: restart apache
+      service:
+        name: apache2
+        state: restarted

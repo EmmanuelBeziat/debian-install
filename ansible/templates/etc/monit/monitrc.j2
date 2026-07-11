@@ -1,0 +1,60 @@
+set daemon 60
+set logfile /var/log/monit.log
+set idfile /var/lib/monit/id
+set statefile /var/lib/monit/state
+
+# Email alerts
+set mailserver localhost
+set mail-format {
+  from: monit@{{ mail_domain }}
+  subject: $SERVICE $EVENT at $DATE
+  message: Monit $ACTION $SERVICE at $DATE on $HOST: $DESCRIPTION.
+}
+set alert {{ admin_email }}
+
+# Web interface
+set httpd port 2812 and
+  use address 127.0.0.1
+  allow 127.0.0.1
+  allow {{ server_ip }}/32
+
+# Check system resources
+check system $HOSTNAME
+  if loadavg (1min) > 4 then alert
+  if loadavg (5min) > 2 then alert
+  if memory usage > 80% then alert
+  if cpu usage (user) > 80% then alert
+  if cpu usage (system) > 80% then alert
+
+# Check services
+check process nginx with pidfile /var/run/nginx.pid
+  start program = "/etc/init.d/nginx start"
+  stop program = "/etc/init.d/nginx stop"
+  if failed host 127.0.0.1 port 80 then restart
+  if 5 restarts within 5 cycles then timeout
+
+check process apache2 with pidfile /var/run/apache2/apache2.pid
+  start program = "/etc/init.d/apache2 start"
+  stop program = "/etc/init.d/apache2 stop"
+  if failed host 127.0.0.1 port {{ apache_port }} then restart
+  if 5 restarts within 5 cycles then timeout
+
+check process mysql with pidfile /var/run/mysqld/mysqld.pid
+  start program = "/etc/init.d/mysql start"
+  stop program = "/etc/init.d/mysql stop"
+  if failed host 127.0.0.1 port 3306 then restart
+  if 5 restarts within 5 cycles then timeout
+
+check process fail2ban with pidfile /var/run/fail2ban/fail2ban.pid
+  start program = "/etc/init.d/fail2ban start"
+  stop program = "/etc/init.d/fail2ban stop"
+  if 5 restarts within 5 cycles then timeout
+
+# Check disk space
+check device rootfs with path /
+  if space usage > 80% then alert
+  if inode usage > 80% then alert
+
+# Check SSL certificate expiration
+check file ssl_cert with path /etc/letsencrypt/live/{{ mail_domain }}/fullchain.pem
+  if changed timestamp then alert

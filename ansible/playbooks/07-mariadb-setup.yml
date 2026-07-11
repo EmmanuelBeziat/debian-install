@@ -1,0 +1,97 @@
+- name: MariaDB setup
+  hosts: servers
+  become: yes
+
+  tasks:
+    - name: Add MariaDB repository setup script
+      get_url:
+        url: https://downloads.mariadb.com/MariaDB/mariadb_repo_setup
+        dest: /tmp/mariadb_repo_setup
+        mode: '0755'
+
+    - name: Run MariaDB repository setup
+      command: "bash /tmp/mariadb_repo_setup --mariadb-server-version=\"mariadb-{{ mariadb_version }}\""
+      args:
+        creates: /etc/apt/sources.list.d/mariadb.list
+
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+
+    - name: Install MariaDB
+      apt:
+        name:
+          - mariadb-server
+          - mariadb-client
+          - python3-pymysql
+        state: present
+
+    - name: Ensure MariaDB is enabled and started
+      systemd:
+        name: mariadb
+        enabled: yes
+        state: started
+
+    - name: Set MariaDB root password
+      mysql_user:
+        user: root
+        host: localhost
+        password: "{{ mariadb_root_password }}"
+        login_user: root
+        login_password: ""
+        state: present
+      ignore_errors: yes
+
+    - name: Remove anonymous users
+      mysql_user:
+        user: ""
+        host_all: yes
+        state: absent
+        login_user: root
+        login_password: "{{ mariadb_root_password }}"
+      ignore_errors: yes
+
+    - name: Remove test database
+      mysql_db:
+        name: test
+        state: absent
+        login_user: root
+        login_password: "{{ mariadb_root_password }}"
+      ignore_errors: yes
+
+    - name: Create admin user
+      mysql_user:
+        user: "{{ mariadb_admin_user }}"
+        host: localhost
+        password: "{{ mariadb_admin_password }}"
+        priv: '*.*:ALL,GRANT'
+        state: present
+        login_user: root
+        login_password: "{{ mariadb_root_password }}"
+
+    - name: Systemd hardening for MariaDB
+      block:
+        - name: Create systemd override directory for MariaDB
+          file:
+            path: /etc/systemd/system/mariadb.service.d
+            state: directory
+            mode: '0755'
+
+        - name: Deploy MariaDB systemd override
+          template:
+            src: ../templates/etc/systemd/system/mariadb-override.conf.j2
+            dest: /etc/systemd/system/mariadb.service.d/override.conf
+            mode: '0644'
+          notify:
+            - daemon-reload
+            - restart mariadb
+
+  handlers:
+    - name: daemon-reload
+      systemd:
+        daemon_reload: yes
+
+    - name: restart mariadb
+      service:
+        name: mariadb
+        state: restarted

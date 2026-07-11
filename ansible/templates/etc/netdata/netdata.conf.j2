@@ -1,0 +1,11 @@
+[global]
+    hostname = {{ server_hostname }}
+    memory mode = dbengine
+    page cache size = 256
+    dbengine multihost disk space = 256
+
+[web]
+    bind to = 127.0.0.1:19999
+    allow connections from = 127.0.0.1
+    allow connections from = ::1
+    allow connections from = {{ server_ip }}/32

@@ -1,0 +1,100 @@
+- name: PHP setup
+  hosts: servers
+  become: yes
+
+  tasks:
+    - name: Install prerequisites
+      apt:
+        name:
+          - apt-transport-https
+          - lsb-release
+          - ca-certificates
+        state: present
+
+    - name: Add Sury PHP repository key
+      apt_key:
+        url: https://packages.sury.org/php/apt.gpg
+        state: present
+
+    - name: Add Sury PHP repository
+      apt_repository:
+        repo: "deb https://packages.sury.org/php/ {{ ansible_distribution_release }} main"
+        state: present
+        filename: php
+
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+
+    - name: Install PHP {{ php_version }}
+      apt:
+        name:
+          - "php{{ php_version }}"
+          - "php{{ php_version }}-opcache"
+          - "libapache2-mod-{{ php_version }}"
+          - "php{{ php_version }}-mysql"
+          - "php{{ php_version }}-curl"
+          - "php{{ php_version }}-gd"
+          - "php{{ php_version }}-intl"
+          - "php{{ php_version }}-mbstring"
+          - "php{{ php_version }}-xml"
+          - "php{{ php_version }}-zip"
+          - "php{{ php_version }}-fpm"
+          - "php{{ php_version }}-readline"
+          - "php{{ php_version }}-imap"
+        state: present
+
+    - name: Configure PHP fastcgi for Apache
+      template:
+        src: ../templates/etc/apache2/fastcgi.conf.j2
+        dest: /etc/apache2/mods-enabled/fastcgi.conf
+        mode: '0644'
+      notify: restart apache
+
+    - name: Enable PHP FPM in Apache
+      command: "{{ item }}"
+      loop:
+        - "a2enconf php{{ php_version }}-fpm"
+        - "a2dismod php{{ php_version }}"
+      notify: restart apache
+
+    - name: Configure PHP
+      lineinfile:
+        path: "/etc/php/{{ php_version }}/fpm/php.ini"
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+      loop:
+        - { regexp: '^;?max_execution_time', line: 'max_execution_time = 300' }
+        - { regexp: '^;?post_max_size', line: 'post_max_size = 512M' }
+        - { regexp: '^;?upload_max_filesize', line: 'upload_max_filesize = 512M' }
+        - { regexp: '^;?date.timezone', line: 'date.timezone = {{ server_timezone }}' }
+      notify: restart php-fpm
+
+    - name: Install Composer
+      block:
+        - name: Download Composer installer
+          get_url:
+            url: https://getcomposer.org/installer
+            dest: /tmp/composer-setup.php
+            mode: '0755'
+
+        - name: Install Composer
+          command: php /tmp/composer-setup.php --install-dir=/usr/local/bin --filename=composer
+          args:
+            creates: /usr/local/bin/composer
+
+        - name: Remove installer
+          file:
+            path: /tmp/composer-setup.php
+            state: absent
+
+  handlers:
+    - name: restart apache
+      service:
+        name: apache2
+        state: restarted
+
+    - name: restart php-fpm
+      service:
+        name: "php{{ php_version }}-fpm"
+        state: restarted

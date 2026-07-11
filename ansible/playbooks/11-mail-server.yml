@@ -1,0 +1,225 @@
+- name: Mail server - Postfix + Dovecot
+  hosts: servers
+  become: yes
+
+  tasks:
+    - name: Install Postfix
+      apt:
+        name:
+          - postfix
+          - postfix-mysql
+          - swaks
+        state: present
+      environment:
+        DEBIAN_FRONTEND: noninteractive
+
+    - name: Install Dovecot
+      apt:
+        name:
+          - dovecot-core
+          - dovecot-mysql
+          - dovecot-pop3d
+          - dovecot-imapd
+          - dovecot-managesieved
+          - dovecot-lmtpd
+        state: present
+
+    - name: Create mail database
+      mysql_db:
+        name: mailserver
+        state: present
+        login_user: root
+        login_password: "{{ mariadb_root_password }}"
+
+    - name: Create mail database user
+      mysql_user:
+        user: "{{ mail_db_user }}"
+        host: 127.0.0.1
+        password: "{{ mail_db_password }}"
+        priv: 'mailserver.*:SELECT'
+        state: present
+        login_user: root
+        login_password: "{{ mariadb_root_password }}"
+
+    - name: Create mail database tables
+      mysql_query:
+        query: "{{ item }}"
+        login_user: root
+        login_password: "{{ mariadb_root_password }}"
+        login_db: mailserver
+      loop:
+        - |
+          CREATE TABLE IF NOT EXISTS `virtual_domains` (
+            `id` int(11) NOT NULL auto_increment,
+            `name` varchar(50) NOT NULL,
+            PRIMARY KEY (`id`)
+          ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+        - |
+          CREATE TABLE IF NOT EXISTS `virtual_users` (
+            `id` int(11) NOT NULL auto_increment,
+            `domain_id` int(11) NOT NULL,
+            `email` varchar(100) NOT NULL,
+            `password` varchar(150) NOT NULL,
+            `quota` bigint(11) NOT NULL DEFAULT 0,
+            PRIMARY KEY (`id`),
+            UNIQUE KEY `email` (`email`),
+            FOREIGN KEY (domain_id) REFERENCES virtual_domains(id) ON DELETE CASCADE
+          ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+        - |
+          CREATE TABLE IF NOT EXISTS `virtual_aliases` (
+            `id` int(11) NOT NULL auto_increment,
+            `domain_id` int(11) NOT NULL,
+            `source` varchar(100) NOT NULL,
+            `destination` varchar(100) NOT NULL,
+            PRIMARY KEY (`id`),
+            FOREIGN KEY (domain_id) REFERENCES virtual_domains(id) ON DELETE CASCADE
+          ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+    - name: Create Postfix MySQL config directory
+      file:
+        path: /etc/postfix/conf
+        state: directory
+        mode: '0755'
+
+    - name: Configure Postfix MySQL virtual mailbox domains
+      template:
+        src: ../templates/etc/postfix/conf/mysql-virtual-mailbox-domains.cf.j2
+        dest: /etc/postfix/conf/mysql-virtual-mailbox-domains.cf
+        mode: '0640'
+        owner: root
+        group: postfix
+
+    - name: Configure Postfix MySQL virtual mailbox maps
+      template:
+        src: ../templates/etc/postfix/conf/mysql-virtual-mailbox-maps.cf.j2
+        dest: /etc/postfix/conf/mysql-virtual-mailbox-maps.cf
+        mode: '0640'
+        owner: root
+        group: postfix
+
+    - name: Configure Postfix MySQL virtual alias maps
+      template:
+        src: ../templates/etc/postfix/conf/mysql-virtual-alias-maps.cf.j2
+        dest: /etc/postfix/conf/mysql-virtual-alias-maps.cf
+        mode: '0640'
+        owner: root
+        group: postfix
+
+    - name: Configure Postfix MySQL email2email
+      template:
+        src: ../templates/etc/postfix/conf/mysql-email2email.cf.j2
+        dest: /etc/postfix/conf/mysql-email2email.cf
+        mode: '0640'
+        owner: root
+        group: postfix
+
+    - name: Configure Postfix main.cf
+      template:
+        src: ../templates/etc/postfix/main.cf.j2
+        dest: /etc/postfix/main.cf
+        mode: '0644'
+      notify: restart postfix
+
+    - name: Configure Postfix master.cf
+      template:
+        src: ../templates/etc/postfix/master.cf.j2
+        dest: /etc/postfix/master.cf
+        mode: '0644'
+      notify: restart postfix
+
+    - name: Create SNI maps
+      template:
+        src: ../templates/etc/postfix/sni_maps.j2
+        dest: /etc/postfix/sni_maps
+        mode: '0644'
+      notify: restart postfix
+
+    - name: Generate SNI maps hash
+      command: postmap -F hash:/etc/postfix/sni_maps
+      notify: restart postfix
+
+    - name: Create vmail group
+      group:
+        name: vmail
+        gid: "{{ vmail_group_id }}"
+        state: present
+
+    - name: Create vmail user
+      user:
+        name: vmail
+        uid: "{{ vmail_user_id }}"
+        group: vmail
+        home: "{{ vmail_home }}"
+        create_home: yes
+        state: present
+
+    - name: Set vmail directory permissions
+      file:
+        path: "{{ vmail_home }}"
+        state: directory
+        owner: vmail
+        group: vmail
+        recurse: yes
+
+    - name: Configure Dovecot 10-auth.conf
+      template:
+        src: ../templates/etc/dovecot/conf.d/10-auth.conf.j2
+        dest: /etc/dovecot/conf.d/10-auth.conf
+        mode: '0644'
+      notify: restart dovecot
+
+    - name: Configure Dovecot 10-mail.conf
+      template:
+        src: ../templates/etc/dovecot/conf.d/10-mail.conf.j2
+        dest: /etc/dovecot/conf.d/10-mail.conf
+        mode: '0644'
+      notify: restart dovecot
+
+    - name: Configure Dovecot 10-master.conf
+      template:
+        src: ../templates/etc/dovecot/conf.d/10-master.conf.j2
+        dest: /etc/dovecot/conf.d/10-master.conf
+        mode: '0644'
+      notify: restart dovecot
+
+    - name: Configure Dovecot 10-ssl.conf
+      template:
+        src: ../templates/etc/dovecot/conf.d/10-ssl.conf.j2
+        dest: /etc/dovecot/conf.d/10-ssl.conf
+        mode: '0644'
+      notify: restart dovecot
+
+    - name: Configure Dovecot 20-lmtp.conf
+      template:
+        src: ../templates/etc/dovecot/conf.d/20-lmtp.conf.j2
+        dest: /etc/dovecot/conf.d/20-lmtp.conf
+        mode: '0644'
+      notify: restart dovecot
+
+    - name: Configure Dovecot SQL
+      template:
+        src: ../templates/etc/dovecot/dovecot-sql.conf.ext.j2
+        dest: /etc/dovecot/dovecot-sql.conf.ext
+        owner: root
+        group: root
+        mode: '0600'
+      notify: restart dovecot
+
+    - name: Configure certificate renewal hook for mail services
+      template:
+        src: ../templates/etc/letsencrypt/renewal-hooks/post/restart-mail.sh.j2
+        dest: /etc/letsencrypt/renewal-hooks/post/restart-mail.sh
+        owner: root
+        group: root
+        mode: '0755'
+
+  handlers:
+    - name: restart postfix
+      service:
+        name: postfix
+        state: restarted
+
+    - name: restart dovecot
+      service:
+        name: dovecot
+        state: restarted

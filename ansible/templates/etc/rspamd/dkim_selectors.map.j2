@@ -1,0 +1,3 @@
+{% for domain in dkim_domains %}
+{{ domain.domain }} {{ domain.selector }}
+{% endfor %}

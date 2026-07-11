@@ -1,0 +1,58 @@
+- name: Monit setup
+  hosts: servers
+  become: yes
+
+  tasks:
+    - name: Install Monit
+      apt:
+        name: monit
+        state: present
+
+    - name: Configure Monit
+      template:
+        src: ../templates/etc/monit/monitrc.j2
+        dest: /etc/monit/monitrc
+        mode: '0600'
+      notify: restart monit
+
+    - name: Create disk alert script
+      template:
+        src: ../templates/usr/local/bin/disk-alert.sh.j2
+        dest: /usr/local/bin/disk-alert.sh
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Create SSL expiry check script
+      template:
+        src: ../templates/usr/local/bin/ssl-expiry-check.sh.j2
+        dest: /usr/local/bin/ssl-expiry-check.sh
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Add monitoring cron tasks
+      cron:
+        name: "{{ item.name }}"
+        minute: "{{ item.minute }}"
+        hour: "{{ item.hour }}"
+        day: "{{ item.day | default('*') }}"
+        month: "{{ item.month | default('*') }}"
+        weekday: "{{ item.weekday | default('*') }}"
+        job: "{{ item.job }}"
+      loop:
+        - { name: 'disk-alert', minute: '0', hour: '*/6', job: '/usr/local/bin/disk-alert.sh' }
+        - { name: 'ssl-expiry-check', minute: '0', hour: '8', weekday: '1', job: '/usr/local/bin/ssl-expiry-check.sh' }
+        - { name: 'cleanup-old-logs', minute: '0', hour: '2', job: '/usr/bin/find /var/log -name "*.log" -mtime +30 -delete' }
+
+    - name: Ensure Monit is enabled and started
+      systemd:
+        name: monit
+        enabled: yes
+        state: started
+
+  handlers:
+    - name: restart monit
+      service:
+        name: monit
+        state: restarted

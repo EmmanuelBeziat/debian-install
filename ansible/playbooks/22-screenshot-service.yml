@@ -1,0 +1,51 @@
+- name: Screenshot service setup
+  hosts: servers
+  become: yes
+
+  vars:
+    screenshot_user: "screenshot"
+    screenshot_directory: "/var/www/screenshots"
+
+  tasks:
+    - name: Create screenshot user
+      user:
+        name: "{{ screenshot_user }}"
+        shell: /bin/bash
+        create_home: yes
+        state: present
+
+    - name: Create screenshot directory (chroot root)
+      file:
+        path: "{{ screenshot_directory }}"
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Create uploads subdirectory (writable by user)
+      file:
+        path: "{{ screenshot_directory }}/uploads"
+        state: directory
+        owner: "{{ screenshot_user }}"
+        group: "{{ screenshot_user }}"
+        mode: '0755'
+
+    - name: Allow password auth for screenshot user with restrictions
+      blockinfile:
+        path: /etc/ssh/sshd_config
+        block: |
+          Match User {{ screenshot_user }}
+            PasswordAuthentication yes
+            ForceCommand internal-sftp
+            ChrootDirectory {{ screenshot_directory }}
+            AllowTcpForwarding no
+            X11Forwarding no
+            PermitTunnel no
+        insertafter: EOF
+      notify: restart ssh
+
+  handlers:
+    - name: restart ssh
+      service:
+        name: ssh
+        state: restarted

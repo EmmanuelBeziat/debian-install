@@ -25,15 +25,15 @@ Port 0
 
 # Logging
 #SyslogFacility AUTH
-#LogLevel INFO
+LogLevel VERBOSE
 
 # Authentication:
 
 #LoginGraceTime 2m
 PermitRootLogin prohibit-password
 #StrictModes yes
-#MaxAuthTries 6
-#MaxSessions 10
+MaxAuthTries 4
+MaxSessions 5
 
 PubkeyAuthentication yes
 
@@ -84,8 +84,8 @@ ChallengeResponseAuthentication no
 # and ChallengeResponseAuthentication to 'no'.
 UsePAM no
 
-#AllowAgentForwarding yes
-#AllowTcpForwarding yes
+AllowAgentForwarding yes
+AllowTcpForwarding no
 #GatewayPorts no
 X11Forwarding no
 #X11DisplayOffset 10
@@ -93,11 +93,11 @@ X11Forwarding no
 #PermitTTY yes
 PrintMotd no
 #PrintLastLog yes
-#TCPKeepAlive yes
+TCPKeepAlive no
 #UseLogin no
 #UsePrivilegeSeparation sandbox
 #PermitUserEnvironment no
-#Compression delayed
+Compression no
 #ClientAliveInterval 0
 #ClientAliveCountMax 3
 UseDNS no

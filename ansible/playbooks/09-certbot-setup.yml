@@ -1,0 +1,31 @@
+- name: Certbot / SSL setup
+  hosts: servers
+  become: yes
+
+  tasks:
+    - name: Install snapd
+      apt:
+        name: snapd
+        state: present
+
+    - name: Ensure snapd is running
+      systemd:
+        name: snapd
+        enabled: yes
+        state: started
+
+    - name: Install certbot via snap
+      command: snap install --classic certbot
+      args:
+        creates: /snap/bin/certbot
+
+    - name: Create certbot symlink
+      file:
+        src: /snap/bin/certbot
+        dest: /usr/bin/certbot
+        state: link
+
+    - name: Generate dhparam
+      command: openssl dhparam -out /etc/ssl/certs/dhparam.pem 2048
+      args:
+        creates: /etc/ssl/certs/dhparam.pem

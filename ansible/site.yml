@@ -1,0 +1,24 @@
+---
+- import_playbook: playbooks/01-system-setup.yml
+- import_playbook: playbooks/02-ssh-setup.yml
+- import_playbook: playbooks/03-apache-setup.yml
+- import_playbook: playbooks/04-nginx-setup.yml
+- import_playbook: playbooks/05-php-setup.yml
+- import_playbook: playbooks/06-nodejs-setup.yml
+- import_playbook: playbooks/07-mariadb-setup.yml
+- import_playbook: playbooks/08-adminer-setup.yml
+- import_playbook: playbooks/09-certbot-setup.yml
+- import_playbook: playbooks/10-webhook-setup.yml
+- import_playbook: playbooks/11-mail-server.yml
+- import_playbook: playbooks/12-rspamd-setup.yml
+- import_playbook: playbooks/13-dkim-setup.yml
+- import_playbook: playbooks/14-ufw-setup.yml
+- import_playbook: playbooks/15-fail2ban-setup.yml
+- import_playbook: playbooks/16-crowdsec-setup.yml
+- import_playbook: playbooks/17-netdata-setup.yml
+- import_playbook: playbooks/18-logrotate-setup.yml
+- import_playbook: playbooks/19-monit-setup.yml
+- import_playbook: playbooks/20-vpn-setup.yml
+- import_playbook: playbooks/21-backup-setup.yml
+- import_playbook: playbooks/22-screenshot-service.yml
+- import_playbook: playbooks/23-lynis-setup.yml

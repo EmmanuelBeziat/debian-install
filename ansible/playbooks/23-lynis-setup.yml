@@ -1,0 +1,54 @@
+- name: Lynis security audit and hardening
+  hosts: servers
+  become: yes
+
+  tasks:
+    - name: Install Lynis
+      apt:
+        name: lynis
+        state: present
+
+    - name: Install BIND9 (if needed for DNS)
+      apt:
+        name: bind9
+        state: present
+      when: install_bind | default(false)
+
+    - name: Configure BIND to hide version
+      block:
+        - name: Create BIND options directory
+          file:
+            path: /etc/bind
+            state: directory
+            mode: '0755'
+
+        - name: Configure BIND named.conf.options
+          template:
+            src: ../templates/etc/bind/named.conf.options.j2
+            dest: /etc/bind/named.conf.options
+            mode: '0644'
+          notify: restart bind
+
+        - name: Check BIND configuration
+          command: named-checkconf
+          changed_when: false
+      when: install_bind | default(false)
+
+    - name: Run Lynis audit
+      command: lynis audit system --no-colors
+      register: lynis_output
+      changed_when: false
+      failed_when: false
+
+    - name: Display Lynis results location
+      debug:
+        msg: |
+          Lynis audit completed.
+          Review the report at: /var/log/lynis.log
+          Review suggestions at: /var/log/lynis-report.dat
+
+  handlers:
+    - name: restart bind
+      service:
+        name: bind9
+        state: restarted

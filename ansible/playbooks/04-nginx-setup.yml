@@ -1,0 +1,111 @@
+- name: Nginx setup
+  hosts: servers
+  become: yes
+  
+  tasks:
+    - name: Install Nginx from official repository
+      block:
+        - name: Add Nginx signing key
+          apt_key:
+            url: https://nginx.org/keys/nginx_signing.key
+            state: present
+
+        - name: Add Nginx repository
+          apt_repository:
+            repo: "deb https://nginx.org/packages/mainline/debian/ {{ ansible_distribution_release }} nginx"
+            state: present
+            filename: nginx
+
+        - name: Update apt cache
+          apt:
+            update_cache: yes
+
+        - name: Install Nginx
+          apt:
+            name: nginx
+            state: latest
+
+    - name: Create necessary directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - /etc/nginx/conf.d
+        - /etc/nginx/snippets
+        - /etc/nginx/sites-available
+        - /etc/nginx/sites-enabled
+
+    - name: Configure Nginx main config
+      template:
+        src: ../templates/etc/nginx/nginx.conf.j2
+        dest: /etc/nginx/nginx.conf
+        mode: '0644'
+      notify: restart nginx
+
+    - name: Configure Nginx conf.d files
+      template:
+        src: ../templates/etc/nginx/conf.d/{{ item }}.j2
+        dest: /etc/nginx/conf.d/{{ item }}
+        mode: '0644'
+      loop:
+        - cache.conf
+        - charset.conf
+        - default.conf
+        - headers.conf
+        - proxy.conf
+        - gzip.conf
+        - webmanifest.conf
+      notify: restart nginx
+
+    - name: Configure Nginx snippets
+      template:
+        src: ../templates/etc/nginx/snippets/{{ item }}.j2
+        dest: /etc/nginx/snippets/{{ item }}
+        mode: '0644'
+      loop:
+        - cache.conf
+        - expires.conf
+        - favicon-error.conf
+        - ssl-config.conf
+      notify: restart nginx
+
+    - name: Configure mime.types
+      template:
+        src: ../templates/etc/nginx/mime.types.j2
+        dest: /etc/nginx/mime.types
+        mode: '0644'
+      notify: restart nginx
+
+    - name: Systemd hardening for Nginx
+      block:
+        - name: Create systemd override directory for Nginx
+          file:
+            path: /etc/systemd/system/nginx.service.d
+            state: directory
+            mode: '0755'
+
+        - name: Deploy Nginx systemd override
+          template:
+            src: ../templates/etc/systemd/system/nginx-override.conf.j2
+            dest: /etc/systemd/system/nginx.service.d/override.conf
+            mode: '0644'
+          notify:
+            - daemon-reload
+            - restart nginx
+
+    - name: Ensure Nginx is enabled on boot
+      systemd:
+        name: nginx
+        enabled: yes
+        state: started
+
+  handlers:
+    - name: daemon-reload
+      systemd:
+        daemon_reload: yes
+
+    - name: restart nginx
+      service:
+        name: nginx
+        state: restarted

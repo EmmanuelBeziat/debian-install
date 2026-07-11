@@ -1,0 +1,67 @@
+- name: Webhook setup
+  hosts: servers
+  become: yes
+
+  vars:
+    go_version: "1.25.0"
+
+  tasks:
+    - name: Download Go
+      get_url:
+        url: "https://go.dev/dl/go{{ go_version }}.linux-amd64.tar.gz"
+        dest: /tmp/go.tar.gz
+        mode: '0644'
+
+    - name: Extract Go
+      unarchive:
+        src: /tmp/go.tar.gz
+        dest: /usr/local
+        remote_src: yes
+        creates: /usr/local/go/bin/go
+
+    - name: Add Go to PATH
+      lineinfile:
+        path: /etc/profile.d/go.sh
+        line: 'export PATH=$PATH:/usr/local/go/bin'
+        create: yes
+        mode: '0644'
+
+    - name: Install webhook via go
+      shell: |
+        export PATH=$PATH:/usr/local/go/bin
+        go install github.com/adnanh/webhook@latest
+      args:
+        executable: /bin/bash
+        creates: /root/go/bin/webhook
+
+    - name: Create webhook symlink
+      file:
+        src: /root/go/bin/webhook
+        dest: /usr/bin/webhook
+        state: link
+
+    - name: Create hooks directory
+      file:
+        path: /usr/share/hooks
+        state: directory
+        mode: '0755'
+
+    - name: Create custom webhook service
+      template:
+        src: ../templates/etc/systemd/system/go-webhook.service.j2
+        dest: /opt/webhook/go-webhook.service
+        mode: '0644'
+
+    - name: Create symlink for service
+      file:
+        src: /opt/webhook/go-webhook.service
+        dest: /etc/systemd/system/go-webhook.service
+        state: link
+      notify: restart go-webhook
+
+  handlers:
+    - name: restart go-webhook
+      systemd:
+        name: go-webhook
+        state: restarted
+        daemon_reload: yes

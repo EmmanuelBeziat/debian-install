@@ -217,6 +217,14 @@ Configuration:
 * `PrintMotd no`
 * `UseDNS no`
 * `AcceptEnv LANG LC_*`
+* `AllowTcpForwarding no`
+* `ClientAliveCountMax 3`
+* `Compression no`
+* `LogLevel VERBOSE`
+* `MaxAuthTries 4`
+* `MaxSessions 5`
+* `TCPKeepAlive no`
+* `AllowAgentForwarding `
 
 **[📝 Example file](samples/etc/ssh/sshd_config.md)**
 
@@ -2883,7 +2891,18 @@ Let’s allow the user to connect to ssh with a password. Edit the ssh config fi
 # Example of overriding settings on a per-user basis
 Match User screenshot
 	PasswordAuthentication yes
+	ForceCommand internal-sftp
+	ChrootDirectory /path/to/folder/
+	AllowTcpForwarding no
+	X11Forwarding no
+	PermitTunnel no
 ```
+
+Note over `ChrootDirectory`: the user will be locked in this directory, so it must be owned by root and not writable by any other user. The user will be able to write in subdirectories.
+
+You will have to create a subdirectory where the user will be able to write, for example `/path/to/folder/uploads/`. Make sure it’s owned by the user.
+
+```console
 
 ⚙️ Restart ssh
 

@@ -1,0 +1,16 @@
+[DEFAULT]
+bantime = 5h
+findtime = 20m
+maxretry = 5
+ignoreip = 127.0.0.1/8 ::1
+banaction = ufw
+banaction_allports = ufw
+
+[sshd]
+port = {{ ssh_port }}
+enabled = true
+
+[postfix]
+port = smtp,submission
+enabled = true
+mode = aggressive

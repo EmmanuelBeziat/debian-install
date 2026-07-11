@@ -1,0 +1,25 @@
+- name: SSH configuration
+  hosts: servers
+  become: yes
+  
+  tasks:
+    - name: Configure SSH
+      template:
+        src: ../templates/etc/ssh/sshd_config.j2
+        dest: /etc/ssh/sshd_config
+        owner: root
+        group: root
+        mode: '0644'
+      notify: restart ssh
+
+    - name: Ensure SSH is enabled on boot
+      systemd:
+        name: ssh
+        enabled: yes
+        state: started
+
+  handlers:
+    - name: restart ssh
+      service:
+        name: ssh
+        state: restarted

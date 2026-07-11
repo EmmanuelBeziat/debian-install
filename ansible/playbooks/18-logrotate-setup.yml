@@ -1,0 +1,118 @@
+- name: Logrotate setup
+  hosts: servers
+  become: yes
+
+  tasks:
+    - name: Install Logrotate
+      apt:
+        name: logrotate
+        state: present
+
+    - name: Configure Nginx logrotate
+      copy:
+        dest: /etc/logrotate.d/nginx
+        content: |
+          /var/log/nginx/*.log {
+              daily
+              missingok
+              rotate 52
+              compress
+              delaycompress
+              notifempty
+              create 0640 www-data adm
+              sharedscripts
+              postrotate
+                  if [ -f /var/run/nginx.pid ]; then
+                      kill -USR1 `cat /var/run/nginx.pid`
+                  fi
+              endscript
+          }
+        mode: '0644'
+
+    - name: Configure Apache logrotate
+      copy:
+        dest: /etc/logrotate.d/apache2
+        content: |
+          /var/log/apache2/*.log {
+              daily
+              missingok
+              rotate 52
+              compress
+              delaycompress
+              notifempty
+              create 640 root adm
+              sharedscripts
+              postrotate
+                  if /etc/init.d/apache2 status > /dev/null ; then \
+                      /etc/init.d/apache2 reload > /dev/null; \
+                  fi;
+              endscript
+          }
+        mode: '0644'
+
+    - name: Configure MySQL logrotate
+      copy:
+        dest: /etc/logrotate.d/mysql
+        content: |
+          /var/log/mysql/*.log {
+              daily
+              rotate 7
+              missingok
+              compress
+              create 640 mysql adm
+              postrotate
+                  if test -x /usr/bin/mysqladmin && \
+                     /usr/bin/mysqladmin ping -h localhost --silent; then
+                      /usr/bin/mysqladmin flush-logs
+                  fi
+              endscript
+          }
+        mode: '0644'
+
+    - name: Configure Fail2ban logrotate
+      copy:
+        dest: /etc/logrotate.d/fail2ban
+        content: |
+          /var/log/fail2ban.log {
+              daily
+              rotate 7
+              compress
+              delaycompress
+              missingok
+              notifempty
+              postrotate
+                  systemctl reload fail2ban
+              endscript
+          }
+        mode: '0644'
+
+    - name: Configure rsyslog logrotate
+      copy:
+        dest: /etc/logrotate.d/rsyslog
+        content: |
+          /var/log/syslog
+          /var/log/mail.info
+          /var/log/mail.warn
+          /var/log/mail.err
+          /var/log/mail.log
+          /var/log/daemon.log
+          /var/log/kern.log
+          /var/log/auth.log
+          /var/log/user.log
+          /var/log/lpr.log
+          /var/log/cron.log
+          /var/log/debug
+          /var/log/messages
+          {
+            rotate 4
+            weekly
+            missingok
+            notifempty
+            compress
+            delaycompress
+            sharedscripts
+            postrotate
+              /usr/lib/rsyslog/rsyslog-rotate
+            endscript
+          }
+        mode: '0644'

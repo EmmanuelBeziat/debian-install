@@ -1,0 +1,61 @@
+- name: DKIM setup
+  hosts: servers
+  become: yes
+
+  vars:
+    dkim_directory: "/var/lib/rspamd/dkim"
+
+  tasks:
+    - name: Create DKIM directory
+      file:
+        path: "{{ dkim_directory }}"
+        state: directory
+        owner: _rspamd
+        group: _rspamd
+        mode: '0750'
+
+    - name: Generate DKIM key pair
+      command: >
+        rspamadm dkim_keygen -d {{ item.domain }} -s {{ item.selector }}
+      loop: "{{ dkim_domains }}"
+      register: dkim_keys
+      changed_when: false
+
+    - name: Save DKIM private keys
+      copy:
+        content: "{{ item.stdout }}"
+        dest: "{{ dkim_directory }}/{{ item.item.domain }}.{{ item.item.selector }}.key"
+        owner: _rspamd
+        group: _rspamd
+        mode: '0600'
+      loop: "{{ dkim_keys.results }}"
+      loop_control:
+        label: "{{ item.item.domain }}"
+      no_log: yes
+
+    - name: Display DKIM public keys for DNS records
+      debug:
+        msg: |
+          DKIM DNS record for {{ item.item.domain }}:
+          {{ item.item.selector }}._domainkey.{{ item.item.domain }}. IN TXT "v=DKIM1; k=rsa; p=<PUBLIC_KEY>"
+
+          Full public key:
+          {{ item.stdout }}
+      loop: "{{ dkim_keys.results }}"
+      loop_control:
+        label: "{{ item.item.domain }}"
+
+    - name: Configure DKIM selectors map
+      template:
+        src: ../templates/etc/rspamd/dkim_selectors.map.j2
+        dest: /etc/rspamd/dkim_selectors.map
+        owner: _rspamd
+        group: _rspamd
+        mode: '0644'
+      notify: restart rspamd
+
+  handlers:
+    - name: restart rspamd
+      service:
+        name: rspamd
+        state: restarted

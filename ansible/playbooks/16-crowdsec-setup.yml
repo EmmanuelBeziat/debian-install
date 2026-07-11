@@ -1,0 +1,69 @@
+- name: CrowdSec setup
+  hosts: servers
+  become: yes
+
+  tasks:
+    - name: Add CrowdSec repository
+      shell: |
+        curl -sL https://packagecloud.io/install/repositories/crowdsec/crowdsec/script.deb.sh | bash
+      args:
+        creates: /etc/apt/sources.list.d/crowdsec_crowdsec.list
+
+    - name: Install CrowdSec
+      apt:
+        name: crowdsec
+        state: present
+
+    - name: Ensure CrowdSec is running
+      systemd:
+        name: crowdsec
+        enabled: yes
+        state: started
+
+    - name: Install Firewall bouncer for UFW
+      apt:
+        name: crowdsec-firewall-bouncer-iptables
+        state: present
+
+    - name: Add UFW bouncer
+      command: cscli bouncers add ufw-bouncer
+      args:
+        creates: /run/.cscli_bouncer_added
+      register: bouncer_add
+      changed_when: bouncer_add.rc == 0
+
+    - name: Create bouncer flag file
+      file:
+        path: /run/.cscli_bouncer_added
+        state: touch
+      when: bouncer_add is changed
+
+    - name: Install CrowdSec collections
+      command: "cscli collections install {{ item }}"
+      loop:
+        - crowdsecurity/sshd
+        - crowdsecurity/nginx
+        - crowdsecurity/postfix
+        - crowdsecurity/dovecot
+      register: collections_install
+      changed_when: "'installed' in collections_install.stdout or 'already installed' not in collections_install.stdout"
+      failed_when: false
+
+    - name: Configure custom whitelist
+      file:
+        path: /etc/crowdsec/parsers/s02-enrich
+        state: directory
+        mode: '0755'
+
+    - name: Add whitelist for admin IP
+      template:
+        src: ../templates/etc/crowdsec/parsers/s02-enrich/custom-whitelist.yaml.j2
+        dest: /etc/crowdsec/parsers/s02-enrich/custom-whitelist.yaml
+        mode: '0644'
+      notify: restart crowdsec
+
+  handlers:
+    - name: restart crowdsec
+      service:
+        name: crowdsec
+        state: restarted

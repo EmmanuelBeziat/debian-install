@@ -1,0 +1,33 @@
+smtpd_banner = $myhostname ESMTP
+biff = no
+append_dot_mydomain = no
+readme_directory = no
+
+myhostname = {{ mail_domain }}
+myorigin = {{ mail_domain }}
+mydestination = localhost
+mynetworks = 127.0.0.0/8 [::ffff:127.0.0.0]/104 [::1]/128
+
+mailbox_size_limit = 0
+recipient_delimiter = +
+inet_protocols = all
+
+virtual_mailbox_domains = mysql:/etc/postfix/conf/mysql-virtual-mailbox-domains.cf
+virtual_mailbox_maps = mysql:/etc/postfix/conf/mysql-virtual-mailbox-maps.cf
+virtual_alias_maps = mysql:/etc/postfix/conf/mysql-virtual-alias-maps.cf,mysql:/etc/postfix/conf/mysql-email2email.cf
+virtual_transport = lmtp:unix:private/dovecot-lmtp
+
+smtpd_sasl_type = dovecot
+smtpd_sasl_path = private/auth
+smtpd_sasl_auth_enable = yes
+
+smtp_tls_security_level = may
+smtp_tls_CAfile = /etc/ssl/certs/ca-certificates.crt
+smtpd_tls_security_level = may
+smtpd_tls_chain_files = /etc/letsencrypt/live/{{ mail_domain }}/privkey.pem, /etc/letsencrypt/live/{{ mail_domain }}/fullchain.pem
+tls_server_sni_maps = hash:/etc/postfix/sni_maps
+smtpd_tls_auth_only = yes
+
+smtpd_milters = inet:127.0.0.1:11332
+non_smtpd_milters = inet:127.0.0.1:11332
+milter_mail_macros = i {mail_addr} {client_addr} {client_name} {auth_authen}

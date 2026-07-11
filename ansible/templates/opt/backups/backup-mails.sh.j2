@@ -1,0 +1,51 @@
+#!/bin/bash
+
+# Check for zip command
+command -v zip >/dev/null 2>&1 || { echo "zip command is required but it's not installed. Aborting." >&2; exit 1; }
+
+# Define variables
+DATE=$(date +'%Y.%m.%d')
+ARCHIVE_NAME="/var/backups/server/${DATE}_mails.zip"
+
+# Load FTP credentials
+FTP_HOST=$(grep 'host=' /root/.ftp_credentials | cut -d '=' -f2 | xargs)
+FTP_USER=$(grep 'user=' /root/.ftp_credentials | cut -d '=' -f2 | xargs)
+FTP_PASS=$(grep 'password=' /root/.ftp_credentials | cut -d '=' -f2 | xargs)
+
+echo "FTP_HOST: $FTP_HOST"
+echo "FTP_USER: $FTP_USER"
+
+# List of configuration files and directories to back up
+MAILS=(
+    "/var/mail/vhosts/{{ mail_domain }}/contact"
+)
+
+# Maximum file size parameter (e.g., 1024m for 1024 MB); leave empty for no limit
+MAX_SIZE="${1:-}"
+
+# Create a temporary directory for organized backup structure
+TMP_DIR=$(mktemp -d)
+
+# Build rsync options based on MAX_SIZE
+RSYNC_OPTS=("--relative" "-av")
+[ -n "$MAX_SIZE" ] && RSYNC_OPTS+=("--max-size=$MAX_SIZE")
+
+# Copy files while preserving directory structure in temporary directory
+for MAILS_FILES in "${MAILS[@]}"; do
+    rsync "${RSYNC_OPTS[@]}" "$MAILS_FILES" "$TMP_DIR"
+done
+
+# Change to the temporary directory to ensure zip archives contents directly
+cd "$TMP_DIR" || exit
+
+# Create the archive from the contents of TMP_DIR
+zip -r "$ARCHIVE_NAME" ./*  || { echo "Failed to create zip archive"; exit 1; }
+
+# Send the archive to the FTP server
+lftp -e "put \"$ARCHIVE_NAME\"; bye" -u "$FTP_USER","$FTP_PASS" "$FTP_HOST"
+
+# Clean up
+rm -rf "$TMP_DIR"
+
+# Optionally, add logging
+echo "Backup of mails completed on $DATE"

@@ -1,0 +1,13 @@
+<IfModule mod_fastcgi.c>
+	AddHandler fastcgi-script .fcgi
+	FastCgiIpcDir /var/lib/apache2/fastcgi
+
+	AddType application/x-httpd-fastphp .php
+	Action application/x-httpd-fastphp /php-fcgi
+	Alias /php-fcgi /usr/lib/cgi-bin/php-fcgi
+	FastCgiExternalServer /usr/lib/cgi-bin/php-fcgi -socket /run/php/php{{ php_version }}-fpm.sock -pass-header Authorization
+
+	<Directory /usr/lib/cgi-bin>
+		Require all granted
+	</Directory>
+</IfModule>

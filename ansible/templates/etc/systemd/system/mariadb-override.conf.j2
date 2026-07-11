@@ -1,0 +1,33 @@
+[Service]
+# Privileges
+NoNewPrivileges=true
+AmbientCapabilities=
+RemoveIPC=true
+
+# Kernel / hardware
+PrivateDevices=true
+ProtectClock=true
+ProtectKernelLogs=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+ProtectHostname=true
+
+# Filesystem
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+RestrictSUIDSGID=true
+ReadWritePaths=/var/lib/mysql /run/mysqld /var/log/mysql
+
+# Namespaces / syscalls / memory
+RestrictNamespaces=true
+LockPersonality=true
+SystemCallArchitectures=native
+MemoryDenyWriteExecute=true
+
+# Network
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+
+# Capabilities
+CapabilityBoundingSet=CAP_CHOWN CAP_DAC_OVERRIDE CAP_FOWNER CAP_SETGID CAP_SETUID CAP_SYS_RESOURCE

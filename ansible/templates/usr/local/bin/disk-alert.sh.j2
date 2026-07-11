@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# Disk space alert script
+THRESHOLD=80
+DISK_USAGE=$(df / | awk 'NR==2 {print $5}' | sed 's/%//')
+
+if [ "$DISK_USAGE" -gt "$THRESHOLD" ]; then
+  echo "WARNING: Disk usage is ${DISK_USAGE}%" | \
+  mail -s "Disk Space Alert on $(hostname)" {{ admin_email }}
+fi

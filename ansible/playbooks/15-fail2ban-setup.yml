@@ -1,0 +1,28 @@
+- name: Fail2ban setup
+  hosts: servers
+  become: yes
+
+  tasks:
+    - name: Install Fail2ban
+      apt:
+        name: fail2ban
+        state: present
+
+    - name: Configure Fail2ban jail.local
+      template:
+        src: ../templates/etc/fail2ban/jail.local.j2
+        dest: /etc/fail2ban/jail.local
+        mode: '0644'
+      notify: restart fail2ban
+
+    - name: Enable Fail2ban
+      systemd:
+        name: fail2ban
+        enabled: yes
+        state: started
+
+  handlers:
+    - name: restart fail2ban
+      service:
+        name: fail2ban
+        state: restarted

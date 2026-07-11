@@ -1,0 +1,18 @@
+driver = mysql
+default_pass_scheme = BLF-CRYPT
+
+connect = \
+  host=127.0.0.1 \
+  dbname=mailserver \
+  user={{ mail_db_user }} \
+  password={{ mail_db_password }}
+
+user_query = SELECT email as user, \
+  concat('*:bytes=', quota) AS quota_rule, \
+  '{{ vmail_home }}/%d/%n' AS home, \
+  {{ vmail_user_id }} AS uid, {{ vmail_group_id }} AS gid \
+  FROM virtual_users WHERE email='%u'
+
+password_query = SELECT password FROM virtual_users WHERE email='%u'
+
+iterate_query = SELECT email AS user FROM virtual_users

@@ -1,0 +1,208 @@
+- name: RSpamD and Redis setup
+  hosts: servers
+  become: yes
+
+  tasks:
+    - name: Install RSpamD and Redis
+      apt:
+        name:
+          - rspamd
+          - redis
+        state: present
+
+    - name: Configure RSpamD milter headers
+      template:
+        src: ../templates/etc/rspamd/override.d/milter_headers.conf.j2
+        dest: /etc/rspamd/override.d/milter_headers.conf
+        mode: '0644'
+      notify:
+        - restart rspamd
+        - restart postfix
+
+    - name: Configure Redis for RSpamD
+      template:
+        src: ../templates/etc/rspamd/override.d/redis.conf.j2
+        dest: /etc/rspamd/override.d/redis.conf
+        mode: '0644'
+      notify: restart rspamd
+
+    - name: Configure RSpamD Bayes autolearn
+      template:
+        src: ../templates/etc/rspamd/override.d/classifier-bayes.conf.j2
+        dest: /etc/rspamd/override.d/classifier-bayes.conf
+        mode: '0644'
+      notify: restart rspamd
+
+    - name: Configure DKIM signing in RSpamD
+      template:
+        src: ../templates/etc/rspamd/local.d/dkim_signing.conf.j2
+        dest: /etc/rspamd/local.d/dkim_signing.conf
+        mode: '0644'
+      notify: restart rspamd
+
+    - name: Configure Dovecot sieve for spam
+      copy:
+        dest: /etc/dovecot/conf.d/90-sieve.conf
+        content: |
+          sieve_after = /etc/dovecot/sieve-after
+
+          imapsieve_mailbox1_name = Junk
+          imapsieve_mailbox1_causes = COPY
+          imapsieve_mailbox1_before = file:/etc/dovecot/sieve/learn-spam.sieve
+
+          imapsieve_mailbox2_name = *
+          imapsieve_mailbox2_from = Junk
+          imapsieve_mailbox2_causes = COPY
+          imapsieve_mailbox2_before = file:/etc/dovecot/sieve/learn-ham.sieve
+
+          sieve_pipe_bin_dir = /etc/dovecot/sieve
+          sieve_global_extensions = +vnd.dovecot.pipe
+          sieve_plugins = sieve_imapsieve sieve_extprograms
+        mode: '0644'
+      notify: restart dovecot
+
+    - name: Configure Dovecot 20-imap
+      copy:
+        dest: /etc/dovecot/conf.d/20-imap.conf
+        content: |
+          mail_plugins = $mail_plugins quota imap_sieve
+        mode: '0644'
+      notify: restart dovecot
+
+    - name: Create sieve-after directory
+      file:
+        path: /etc/dovecot/sieve-after
+        state: directory
+        mode: '0755'
+
+    - name: Create spam-to-folder sieve script
+      copy:
+        dest: /etc/dovecot/sieve-after/spam-to-folder.sieve
+        content: |
+          require ["fileinto"];
+
+          if header :contains "X-Spam" "Yes" {
+           fileinto "Junk";
+           stop;
+          }
+        mode: '0644'
+
+    - name: Compile spam sieve script
+      command: sievec /etc/dovecot/sieve-after/spam-to-folder.sieve
+
+    - name: Create sieve directory
+      file:
+        path: /etc/dovecot/sieve
+        state: directory
+        mode: '0755'
+
+    - name: Create learn-spam sieve script
+      copy:
+        dest: /etc/dovecot/sieve/learn-spam.sieve
+        content: |
+          require ["vnd.dovecot.pipe", "copy", "imapsieve"];
+          pipe :copy "rspamd-learn-spam.sh";
+        mode: '0644'
+
+    - name: Create learn-ham sieve script
+      copy:
+        dest: /etc/dovecot/sieve/learn-ham.sieve
+        content: |
+          require ["vnd.dovecot.pipe", "copy", "imapsieve", "variables"];
+          if string "${mailbox}" "Trash" {
+            stop;
+          }
+          pipe :copy "rspamd-learn-ham.sh";
+        mode: '0644'
+
+    - name: Compile sieve learning scripts
+      command: "sievec {{ item }}"
+      loop:
+        - /etc/dovecot/sieve/learn-spam.sieve
+        - /etc/dovecot/sieve/learn-ham.sieve
+
+    - name: Create rspamd-learn-spam.sh
+      copy:
+        dest: /etc/dovecot/sieve/rspamd-learn-spam.sh
+        content: |
+          #!/bin/sh
+          exec /usr/bin/rspamc learn_spam
+        owner: vmail
+        group: vmail
+        mode: '0700'
+
+    - name: Create rspamd-learn-ham.sh
+      copy:
+        dest: /etc/dovecot/sieve/rspamd-learn-ham.sh
+        content: |
+          #!/bin/sh
+          exec /usr/bin/rspamc learn_ham
+        owner: vmail
+        group: vmail
+        mode: '0700'
+
+    - name: Configure Dovecot 15-mailboxes
+      copy:
+        dest: /etc/dovecot/conf.d/15-mailboxes.conf
+        content: |
+          mailbox Junk {
+            special_use = \Junk
+            auto = subscribe
+            autoexpunge = 30d
+          }
+          mailbox Trash {
+            special_use = \Trash
+            auto = subscribe
+            autoexpunge = 30d
+          }
+        mode: '0644'
+      notify: restart dovecot
+
+    - name: Ensure Redis is enabled and started
+      systemd:
+        name: redis-server
+        enabled: yes
+        state: started
+
+    - name: Secure Redis with password
+      block:
+        - name: Configure Redis password
+          lineinfile:
+            path: /etc/redis/redis.conf
+            regexp: '^#? ?requirepass'
+            line: "requirepass {{ redis_password }}"
+          notify: restart redis
+
+        - name: Disable Redis CONFIG command
+          lineinfile:
+            path: /etc/redis/redis.conf
+            regexp: '^#? ?rename-command CONFIG'
+            line: 'rename-command CONFIG ""'
+          notify: restart redis
+
+        - name: Verify Redis password works
+          command: "redis-cli -a {{ redis_password }} ping"
+          register: redis_ping
+          changed_when: false
+          failed_when: redis_ping.stdout != "PONG"
+
+  handlers:
+    - name: restart rspamd
+      service:
+        name: rspamd
+        state: restarted
+
+    - name: restart postfix
+      service:
+        name: postfix
+        state: restarted
+
+    - name: restart dovecot
+      service:
+        name: dovecot
+        state: restarted
+
+    - name: restart redis
+      service:
+        name: redis-server
+        state: restarted

@@ -1,0 +1,20 @@
+Port {{ ssh_port }}
+PermitRootLogin prohibit-password
+PubkeyAuthentication yes
+AuthorizedKeysFile .ssh/authorized_keys .ssh/authorized_keys2
+PasswordAuthentication no
+PermitEmptyPasswords no
+ChallengeResponseAuthentication no
+UsePAM no
+X11Forwarding no
+PrintMotd no
+UseDNS no
+AcceptEnv LANG LC_*
+AllowTcpForwarding no
+ClientAliveCountMax 3
+Compression no
+LogLevel VERBOSE
+MaxAuthTries 4
+MaxSessions 5
+TCPKeepAlive no
+AllowAgentForwarding no

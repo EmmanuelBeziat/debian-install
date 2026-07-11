@@ -1,0 +1,5 @@
+group_vars/all.yml
+group_vars/vault.yml
+*.retry
+*.log
+.DS_Store

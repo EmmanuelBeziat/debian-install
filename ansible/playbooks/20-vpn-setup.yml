@@ -1,0 +1,43 @@
+- name: VPN setup
+  hosts: servers
+  become: yes
+
+  vars:
+    openvpn_port: 1194
+
+  tasks:
+    - name: Download OpenVPN install script
+      get_url:
+        url: https://raw.githubusercontent.com/Angristan/openvpn-install/master/openvpn-install.sh
+        dest: /root/openvpn-install.sh
+        mode: '0755'
+
+    - name: Install OpenVPN
+      command: /root/openvpn-install.sh
+      args:
+        creates: /etc/openvpn/server.conf
+      environment:
+        AUTO_INSTALL: "y"
+
+    - name: Create OpenVPN UFW profile
+      template:
+        src: ../templates/etc/ufw/applications.d/openvpn.j2
+        dest: /etc/ufw/applications.d/openvpn
+        mode: '0644'
+
+    - name: Allow OpenVPN in UFW
+      ufw:
+        rule: allow
+        name: OpenVPN
+
+- name: VPN info
+  hosts: servers
+  become: yes
+  gather_facts: false
+  tasks:
+    - name: Display VPN info
+      debug:
+        msg: |
+          OpenVPN has been installed.
+          To add a new user, run: /root/openvpn-install.sh
+          Configuration files are in /root/

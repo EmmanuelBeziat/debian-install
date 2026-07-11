@@ -1,0 +1,4 @@
+---
+- import_playbook: playbooks/01-system-setup.yml
+- import_playbook: playbooks/02-ssh-setup.yml
+- import_playbook: playbooks/03-apache-setup.yml

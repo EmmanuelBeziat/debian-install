@@ -1,0 +1,47 @@
+- name: System initial setup
+  hosts: servers
+  become: yes
+  
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Upgrade all packages
+      apt:
+        upgrade: dist
+        autoremove: yes
+        autoclean: yes
+
+    - name: Set timezone
+      timezone:
+        name: "{{ server_timezone }}"
+
+    - name: Install base packages
+      apt:
+        name:
+          - software-properties-common
+          - gnupg2
+          - curl
+          - wget
+          - zip
+          - unzip
+          - dos2unix
+          - jq
+          - dnsutils
+          - vim
+          - git
+          - rsync
+          - needrestart
+        state: present
+
+    - name: Configure git
+      git_config:
+        name: "{{ item.name }}"
+        scope: global
+        value: "{{ item.value }}"
+      loop:
+        - { name: 'user.name', value: '{{ git_user_name }}' }
+        - { name: 'user.email', value: '{{ git_user_email }}' }
+        - { name: 'core.editor', value: 'vim' }

@@ -1,0 +1,12 @@
+[Unit]
+Description=Webhook Custom Service
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/webhook -hooks=/usr/share/hooks/hooks.json -hotreload=true -ip "127.0.0.1" -port=9000 -verbose=true
+WorkingDirectory=/opt/webhook
+KillMode=process
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

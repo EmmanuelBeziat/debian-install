@@ -1,0 +1,15 @@
+#!/bin/bash
+
+# SSL certificate expiry check
+DOMAIN="{{ mail_domain }}"
+DAYS_WARNING=30
+
+EXPIRY_DATE=$(openssl x509 -enddate -noout -in /etc/letsencrypt/live/$DOMAIN/fullchain.pem | cut -d= -f2)
+EXPIRY_EPOCH=$(date -d "$EXPIRY_DATE" +%s)
+CURRENT_EPOCH=$(date +%s)
+DAYS_LEFT=$(( ($EXPIRY_EPOCH - $CURRENT_EPOCH) / 86400 ))
+
+if [ "$DAYS_LEFT" -lt "$DAYS_WARNING" ]; then
+  echo "WARNING: SSL certificate for $DOMAIN expires in $DAYS_LEFT days" | \
+  mail -s "SSL Certificate Expiry Alert" {{ admin_email }}
+fi
