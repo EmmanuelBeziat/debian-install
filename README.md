@@ -475,6 +475,7 @@ CapabilityBoundingSet=CAP_SETUID CAP_SETGID CAP_CHOWN CAP_DAC_OVERRIDE CAP_FOWNE
 ProtectSystem=strict
 ProtectHome=true
 PrivateTmp=true
+RuntimeDirectory=apache2
 ReadWritePaths=/var/www /var/log/apache2 /var/lib/apache2 /run/apache2
 
 # Syscalls
@@ -485,6 +486,8 @@ SystemCallFilter=setgroups setgroups32 setuid setuid32 setgid setgid32 setresuid
 ```
 
 The `setgroups`/`setuid`/`setgid` allowlist is required for any web server whose master process drops privileges to a worker user — omitting it causes workers to be killed mid-request (visible as `504` after a long hang, not an immediate failure).
+
+`RuntimeDirectory=apache2` is required, not optional: `ProtectSystem=strict` combined with `ReadWritePaths=/run/apache2` needs that directory to already exist at the moment systemd sets up the unit's mount namespace, which happens before Apache's own startup gets a chance to create it. Without `RuntimeDirectory=`, this is a boot-order race — it works when `systemd-tmpfiles-setup` happens to create `/run/apache2` first, and fails otherwise with `apache2.service: Failed to set up mount namespacing … Failed at step NAMESPACE` (status `226/NAMESPACE`). `RuntimeDirectory=apache2` tells systemd to create the directory itself before applying the sandbox, removing the race entirely.
 
 If vhosts use symlinks pointing outside their docroot, check where they resolve before finalizing `ReadWritePaths`:
 
