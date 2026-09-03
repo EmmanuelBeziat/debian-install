@@ -103,6 +103,7 @@ If help is needed for one of the following commands, use https://explainshell.co
     - [9.2.1 Installation](#921-installation)
     - [9.2.2 Configuration](#922-configuration)
     - [9.2.3 Test Configuration](#923-test-configuration)
+    - [9.2.4 Global size cap and single-backup policy](#924-global-size-cap-and-single-backup-policy)
   - [9.3 Alertes Système](#93-alertes-systeme)
     - [9.3.1 Installation de Monit](#931-installation-de-monit)
     - [9.3.2 Configuration Monit](#932-configuration-monit)
@@ -2659,6 +2660,114 @@ Force a rotation:
 
 ```console
 logrotate -f /etc/logrotate.d/nginx
+```
+
+### 9.2.4 Global size cap and single-backup policy
+
+The per-service examples above (`daily`/`rotate 52`, `rotate 7`, ...) work,
+but left unattended they let `/var/log` grow indefinitely — 52 daily backups
+of a busy access log is a lot of disk for very little practical value. A
+simpler, more predictable policy: **cap every log at a fixed size and keep
+only the single most recent rotated copy.**
+
+✏️ `/etc/logrotate.conf`
+
+Set this as the fallback for anything that doesn't specify its own rotation:
+
+```bash
+# rotate log files weekly (fallback for anything without its own size/rotate directive)
+weekly
+
+# keep 1 rotated backup by default
+rotate 1
+
+# fallback size cap for logs that don't set their own
+size 2M
+```
+
+Then, in every stanza under `/etc/logrotate.d/`, replace the time interval
+(`daily`/`weekly`/`monthly`) with a bare `size` directive and set `rotate 1`:
+
+```bash
+/var/log/nginx/*.log {
+    size 2M
+    missingok
+    rotate 1
+    compress
+    delaycompress
+    notifempty
+    create 0640 www-data adm
+    sharedscripts
+    postrotate
+        if [ -f /var/run/nginx.pid ]; then
+            kill -USR1 `cat /var/run/nginx.pid`
+        fi
+    endscript
+}
+```
+
+Using a bare `size` (rather than `daily` combined with `maxsize`) matters:
+combined with a time interval, logrotate *also* force-rotates on the
+calendar regardless of size, which produces a lot of near-empty rotated
+files for low-traffic logs. A bare `size` directive rotates purely once the
+threshold is crossed, checked once a day by `logrotate.timer`/`cron.daily` —
+that's the practical limit of this approach (not a continuous watchdog, so a
+log can briefly exceed the cap between daily checks under heavy write
+volume), but it keeps disk usage predictable without babysitting individual
+services.
+
+**Watch for per-vhost log subdirectories.** If vhosts write logs to a nested
+path (e.g. `/var/log/nginx/clients/<name>/*.log` for a per-client layout),
+the default `/var/log/nginx/*.log` glob does **not** match them — logrotate
+globs don't recurse into subdirectories. Any such convention needs its own
+explicit pattern in the same stanza:
+
+```bash
+/var/log/nginx/*.log /var/log/nginx/clients/*/*.log {
+    size 2M
+    ...
+}
+```
+
+Forgetting this is easy to miss because logrotate reports no error — it
+simply never considers files it was never told to look for, and they grow
+unbounded silently.
+
+**Some services manage their own rotation and ignore logrotate entirely** —
+check for this before assuming a `logrotate.d` stanza covers everything
+under `/var/log`:
+
+- **CrowdSec** (`/etc/crowdsec/config.yaml`, `common:` block) and the
+  firewall bouncer (`/etc/crowdsec/bouncers/crowdsec-firewall-bouncer.yaml`)
+  each rotate their own logs via `log_max_size` (MB) / `log_max_files` or
+  `log_max_backups`. Set both to `2` / `1` for the same policy, then
+  `systemctl restart crowdsec crowdsec-firewall-bouncer` — the new limits
+  only apply after a restart, which also immediately rotates an oversized
+  current log.
+- **Certbot** rotates `/var/log/letsencrypt/letsencrypt.log` itself, one
+  backup per invocation, capped by `max-log-backups` in `/etc/letsencrypt/cli.ini`
+  (create the file if it doesn't exist — the default is around 1000):
+  ```ini
+  max-log-backups = 1
+  ```
+- **systemd-journald** (`/var/log/journal`, binary, not a rotated text log)
+  is capped separately via `SystemMaxUse` in `/etc/systemd/journald.conf`:
+  ```ini
+  SystemMaxUse=200M
+  ```
+  Apply with `systemctl restart systemd-journald`, then
+  `journalctl --vacuum-size=200M` to shrink an already-oversized journal
+  immediately instead of waiting for natural rotation.
+
+Verify nothing exceeds the policy:
+
+```console
+find /var/log -regextype posix-extended -regex '.*\.[0-9]+(\.gz)?$' \
+  | sed -E 's/\.[0-9]+(\.gz)?$//' | sort | uniq -c | sort -rn | awk '$1>1'
+# empty output = every log capped at 1 rotated copy
+
+du -sh /var/log
+journalctl --disk-usage
 ```
 
 ## 9.3 Alertes Système
