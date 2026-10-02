@@ -44,8 +44,15 @@ echo "Reinstalling PM2…"
 npm install -g pm2
 echo "PM2 reinstalled."
 
-echo "Resurrecting PM2 processes…"
-pm2 resurrect
+echo "Regenerating PM2 startup unit…"
+pm2 startup systemd -u root --hp /root
+systemctl daemon-reload
+echo "PM2 startup unit regenerated."
+
+echo "Restarting PM2 daemon under systemd…"
+pm2 kill
+systemctl start pm2-root
+pm2 save
 echo "PM2 processes resurrected."
 
 echo "Node.js update process completed successfully!"
