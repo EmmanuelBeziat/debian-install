@@ -52,6 +52,7 @@ echo "PM2 startup unit regenerated."
 echo "Restarting PM2 daemon under systemd…"
 pm2 kill
 systemctl start pm2-root
+pm2 restart all --update-env
 pm2 save
 echo "PM2 processes resurrected."
 
