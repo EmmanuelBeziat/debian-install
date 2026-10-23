@@ -942,7 +942,7 @@ pm2 restore
 
 ## 3.4.3 Update script
 
-NVM has an issue: updating the version will not keep your globally installed packages. Here’s a script to make this automatically:
+NVM has an issue: updating the version will not keep your globally installed packages. Here’s a script to make this automatically. It also regenerates the PM2 systemd unit (`pm2 startup`), which otherwise keeps pointing at the old Node path — PM2 apps would then not come back on reboot:
 
 ✏️ `/usr/local/bin/node-update`
 ```bash
@@ -999,12 +999,23 @@ echo "Reinstalling PM2…"
 npm install -g pm2
 echo "PM2 reinstalled."
 
-# Step 8: Resurrect PM2 processes
-echo "Resurrecting PM2 processes…"
-pm2 resurrect
+# Step 8: Regenerate the systemd unit so it points at the new Node/PM2 path
+# (otherwise pm2-root.service keeps the old nvm path and apps won't come back on reboot)
+echo "Regenerating PM2 startup unit…"
+pm2 startup systemd -u root --hp /root
+systemctl daemon-reload
+echo "PM2 startup unit regenerated."
+
+# Step 9: Restart the PM2 daemon on the new version, under systemd
+# (pm2 kill stops the old in-memory daemon; the unit's ExecStart resurrects the
+# list saved in step 2 — don't use 'pm2 update', it respawns the daemon outside systemd)
+echo "Restarting PM2 daemon under systemd…"
+pm2 kill
+systemctl start pm2-root
+pm2 save
 echo "PM2 processes resurrected."
 
-# Step 9: Final Confirmation
+# Step 10: Final Confirmation
 echo "Node.js update process completed successfully!"
 echo "Installed Node.js version: $(node -v)"
 ```
