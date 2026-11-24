@@ -2212,14 +2212,15 @@ ufw allow in "OpenSSH"
 
 Now, proceed to add other needed rules, either with `ufw allow` or `ufw deny`, on a chosen port. Alternatively, you can use `ufw allow <app>` to allow all traffic on a given application.
 
+Only open ports that a service actually listens on publicly (check with `ss -tlnp`). Services bound to `127.0.0.1` (Apache, Webhook, MariaDB, Redis, RSpamD, NodeJS apps…) are reached through Nginx or locally and need no rule. `SMTPS` (465) is not opened here because Postfix only enables submission on 587 in this guide.
+
 ```console
 ufw allow in "WWW full TCP"
 ufw allow in "WWW full UDP"
 ufw allow in "Mail submission"
 ufw allow in "SMTP"
-ufw allow in "SMTPS"
 ufw allow in "IMAP"
-ufw allow in "IMAPS
+ufw allow in "IMAPS"
 ufw allow in "POP3"
 ufw allow in "POP3S"
 ```
@@ -2231,15 +2232,21 @@ ufw enable
 ufw status
 ```
 
-If you have installed Webhook, let’s make a custom application rule (but it's not necessary if nginx receives the request and pass it directly):
+**Do not open a UFW port for Webhook.** The service listens on `127.0.0.1:9000` only (see [6 Webhook](#6-webhook)): expose it through an Nginx HTTPS vhost instead, so GitHub calls go through TLS and Nginx logging:
 
-✏️ `/etc/ufw/applications.d/webhook`
+✏️ `/etc/nginx/sites-available/<domain>.conf`
 
-```ini
-[Webhook]
-title=Webhook Service
-description=Lightweight configurable tool written that allows you to easily create HTTP endpoints
-ports=<WEBHOOK_PORT>/tcp
+```nginx
+server {
+    listen 443 ssl;
+    server_name hooks.<DOMAIN>;
+
+    location / {
+        proxy_pass http://127.0.0.1:9000;
+    }
+
+    include snippets/ssl/<domain>.conf;
+}
 ```
 
 Ufw usually reload after adding a new rule. Check the status, and reload if needed.

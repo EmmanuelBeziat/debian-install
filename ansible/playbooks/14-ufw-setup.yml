@@ -45,6 +45,12 @@
         port: '443'
         proto: tcp
 
+    - name: Allow HTTPS over QUIC (HTTP/3)
+      ufw:
+        rule: allow
+        port: '443'
+        proto: udp
+
     - name: Allow SMTP
       ufw:
         rule: allow
