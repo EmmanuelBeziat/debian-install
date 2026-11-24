@@ -805,7 +805,7 @@ apt-cache policy php
 If everything is reay, install the version of php you need, then check if it's installed correctly.
 
 ```console
-apt install php8.4 php8.4-opcache libapache2-mod-php8.4 php8.4-mysql php8.4-curl php8.4-gd php8.4-intl php8.4-mbstring php8.4-xml php8.4-zip php8.4-fpm php8.4-readline php8.4-xml
+apt install php8.4 php8.4-opcache php8.4-mysql php8.4-curl php8.4-gd php8.4-intl php8.4-mbstring php8.4-xml php8.4-zip php8.4-fpm php8.4-readline php8.4-xml
 php -v
 ```
 
@@ -835,12 +835,11 @@ And enable it.
 a2enmod fastcgi
 ```
 
-Enable the php8.4-fpm service.
+Enable the php8.4-fpm service. Apache only hands PHP to PHP-FPM: `libapache2-mod-php` is not needed (it would also force the `prefork` MPM).
 
 ```console
 a2enmod proxy_fcgi setenvif
 a2enconf php8.4-fpm
-a2dismod php8.4
 ```
 
 ⚙️ Then restart Apache2.

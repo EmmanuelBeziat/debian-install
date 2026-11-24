@@ -31,7 +31,6 @@
         name:
           - "php{{ php_version }}"
           - "php{{ php_version }}-opcache"
-          - "libapache2-mod-{{ php_version }}"
           - "php{{ php_version }}-mysql"
           - "php{{ php_version }}-curl"
           - "php{{ php_version }}-gd"
@@ -55,7 +54,6 @@
       command: "{{ item }}"
       loop:
         - "a2enconf php{{ php_version }}-fpm"
-        - "a2dismod php{{ php_version }}"
       notify: restart apache
 
     - name: Configure PHP
