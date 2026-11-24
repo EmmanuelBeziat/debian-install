@@ -29,9 +29,7 @@
     - name: Install PHP {{ php_version }}
       apt:
         name:
-          - "php{{ php_version }}"
-          - "php{{ php_version }}-opcache"
-          - "libapache2-mod-{{ php_version }}"
+          - "php{{ php_version }}-cli"
           - "php{{ php_version }}-mysql"
           - "php{{ php_version }}-curl"
           - "php{{ php_version }}-gd"
@@ -55,19 +53,18 @@
       command: "{{ item }}"
       loop:
         - "a2enconf php{{ php_version }}-fpm"
-        - "a2dismod php{{ php_version }}"
       notify: restart apache
 
-    - name: Configure PHP
-      lineinfile:
-        path: "/etc/php/{{ php_version }}/fpm/php.ini"
-        regexp: "{{ item.regexp }}"
-        line: "{{ item.line }}"
-      loop:
-        - { regexp: '^;?max_execution_time', line: 'max_execution_time = 300' }
-        - { regexp: '^;?post_max_size', line: 'post_max_size = 512M' }
-        - { regexp: '^;?upload_max_filesize', line: 'upload_max_filesize = 512M' }
-        - { regexp: '^;?date.timezone', line: 'date.timezone = {{ server_timezone }}' }
+    - name: Configure PHP (custom settings outside php.ini)
+      copy:
+        dest: "/etc/php/{{ php_version }}/fpm/conf.d/99-custom.ini"
+        content: |
+          max_execution_time = 300
+          post_max_size = 1024M
+          upload_max_filesize = 1024M
+          date.timezone = {{ server_timezone }}
+          opcache.jit = off
+        mode: '0644'
       notify: restart php-fpm
 
     - name: Install Composer
