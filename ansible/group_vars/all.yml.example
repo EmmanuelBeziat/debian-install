@@ -9,7 +9,7 @@ apache_port: 8085
 nginx_default_port: 80
 nginx_https_port: 443
 
-php_version: "8.4"
+php_version: "8.6"
 node_default_version: "node"
 
 mariadb_version: "12.2"

@@ -787,7 +787,7 @@ journalctl -k --since "2 minutes ago" | grep -i audit
 
 ### 3.3.1 Installation
 
-To use php 8, a third party repository is needed. If you want to stick with php 7.4, ignore the first steps and replace "8.4" by "7.4".
+To use php 8, a third party repository is needed. This guide uses PHP 8.6: to install another version, replace "8.6" by the version you need.
 
 ```console
 apt -y install apt-transport-https lsb-release ca-certificates
@@ -805,9 +805,11 @@ apt-cache policy php
 If everything is reay, install the version of php you need, then check if it's installed correctly.
 
 ```console
-apt install php8.4 php8.4-opcache php8.4-mysql php8.4-curl php8.4-gd php8.4-intl php8.4-mbstring php8.4-xml php8.4-zip php8.4-fpm php8.4-readline php8.4-xml
+apt install php8.6-fpm php8.6-cli php8.6-mysql php8.6-curl php8.6-gd php8.6-intl php8.6-mbstring php8.6-xml php8.6-zip php8.6-readline
 php -v
 ```
+
+OPcache is part of PHP core since 8.5: there is no `php8.x-opcache` package anymore. Don't use the `php8.6` metapackage either, it may pull `libapache2-mod-php8.6`.
 
 Add a mod for factcgi in apache.
 
@@ -821,7 +823,7 @@ Add a mod for factcgi in apache.
 	AddType application/x-httpd-fastphp .php
 	Action application/x-httpd-fastphp /php-fcgi
 	Alias /php-fcgi /usr/lib/cgi-bin/php-fcgi
-	FastCgiExternalServer /usr/lib/cgi-bin/php-fcgi -socket /run/php/php8.4-fpm.sock -pass-header Authorization
+	FastCgiExternalServer /usr/lib/cgi-bin/php-fcgi -socket /run/php/php8.6-fpm.sock -pass-header Authorization
 
 	<Directory /usr/lib/cgi-bin>
 		Require all granted
@@ -835,18 +837,18 @@ And enable it.
 a2enmod fastcgi
 ```
 
-Enable the php8.4-fpm service. Apache only hands PHP to PHP-FPM: `libapache2-mod-php` is not needed (it would also force the `prefork` MPM).
+Enable the php8.6-fpm service. Apache only hands PHP to PHP-FPM: `libapache2-mod-php` is not needed (it would also force the `prefork` MPM).
 
 ```console
 a2enmod proxy_fcgi setenvif
-a2enconf php8.4-fpm
+a2enconf php8.6-fpm
 ```
 
 ⚙️ Then restart Apache2.
 
 Once everything is working, configure your php instance.
 
-✏️ `/etc/php/8.4/fpm/php.ini`
+✏️ `/etc/php/8.6/fpm/php.ini`
 
 * `max_execution_time = 300`
 * `post_max_size = 512M`

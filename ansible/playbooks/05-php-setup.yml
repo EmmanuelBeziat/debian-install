@@ -29,8 +29,7 @@
     - name: Install PHP {{ php_version }}
       apt:
         name:
-          - "php{{ php_version }}"
-          - "php{{ php_version }}-opcache"
+          - "php{{ php_version }}-cli"
           - "php{{ php_version }}-mysql"
           - "php{{ php_version }}-curl"
           - "php{{ php_version }}-gd"
