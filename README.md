@@ -373,10 +373,12 @@ include conf-custom/constants.conf
 
 Now, the defined constants can be called within any Apache configuration file.
 
+Apache only serves PHP behind Nginx, so it must listen on the loopback interface only. Binding it to all interfaces (`Listen ${APACHE_PORT}`) would leave it reachable from the internet as soon as the firewall is down or misconfigured, bypassing Nginx entirely.
+
 ✏️ `/etc/apache2/ports.conf`
 ```apacheconf
 # If you just change the port or add more ports here, you will likely also have to change the VirtualHost statement in /etc/apache2/sites-enabled/000-default.conf
-Listen ${APACHE_PORT}
+Listen 127.0.0.1:${APACHE_PORT}
 
 # <IfModule ssl_module>
 # 	Listen 443
@@ -386,6 +388,16 @@ Listen ${APACHE_PORT}
 # 	Listen 443
 # </IfModule>
 ```
+
+VirtualHosts can keep `<VirtualHost *:${APACHE_PORT}>`: they will only be reached through the loopback listener.
+
+> [!WARNING]
+> Changing the address of an existing `Listen` requires a full **restart**: a `systemctl reload apache2` (graceful restart) tries to bind `127.0.0.1:<port>` while the old `*:<port>` socket is still open, fails with `Address already in use`, and Apache stops.
+>
+> ```console
+> apache2ctl configtest && systemctl restart apache2
+> ss -tlnp | grep apache2   # must show 127.0.0.1:<APACHE_PORT> only
+> ```
 
 ✏️ `/etc/apache2/conf-available/charset.conf`
 
@@ -556,7 +568,7 @@ charset_types *;
 ✏️ `/etc/nginx/conf.d/default.conf`
 ```nginx
 upstream apachephp {
-    server <SERVER_IP>:<APACHE_PORT>;
+    server 127.0.0.1:<APACHE_PORT>;
 }
 
 server {
