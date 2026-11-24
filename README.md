@@ -846,14 +846,27 @@ a2enconf php8.6-fpm
 
 ⚙️ Then restart Apache2.
 
-Once everything is working, configure your php instance.
+Once everything is working, configure your php instance. Put custom settings in their own file rather than editing `php.ini`: it survives package upgrades and can be copied as-is to the next PHP version.
 
-✏️ `/etc/php/8.6/fpm/php.ini`
+✏️ `/etc/php/8.6/fpm/conf.d/99-custom.ini`
 
-* `max_execution_time = 300`
-* `post_max_size = 512M`
-* `upload_max_filesize = 512M`
-* `date.timezone = Europe/Paris`
+```ini
+max_execution_time = 300
+post_max_size = 1024M
+upload_max_filesize = 1024M
+date.timezone = Europe/Paris
+opcache.jit = off
+```
+
+⚙️ Check, then restart PHP-FPM:
+
+```console
+php-fpm8.6 -t
+systemctl restart php8.6-fpm
+```
+
+> [!NOTE]
+> Each new `php8.x-fpm` package ships `/etc/logrotate.d/php8.x-fpm` with its own defaults (`rotate 12`, `weekly`): align it with your log rotation policy after installing a new version.
 
 
 
