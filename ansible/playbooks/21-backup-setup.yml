@@ -8,6 +8,31 @@
         name: lftp
         state: present
 
+    # Official .deb: Debian's rclone is too old for current Google Drive auth.
+    # Not apt-managed afterwards: update with `rclone selfupdate`.
+    - name: Check whether rclone is installed
+      stat:
+        path: /usr/bin/rclone
+      register: rclone_bin
+
+    - name: Install rclone (official .deb)
+      when: not rclone_bin.stat.exists
+      block:
+        - name: Download rclone .deb (checked against the official SHA256SUMS)
+          get_url:
+            url: "https://downloads.rclone.org/{{ rclone_version }}/rclone-{{ rclone_version }}-linux-amd64.deb"
+            dest: /tmp/rclone.deb
+            checksum: "sha256:https://downloads.rclone.org/{{ rclone_version }}/SHA256SUMS"
+
+        - name: Install rclone .deb
+          apt:
+            deb: /tmp/rclone.deb
+
+        - name: Remove rclone .deb
+          file:
+            path: /tmp/rclone.deb
+            state: absent
+
     - name: Create backup directory
       file:
         path: /opt/backups
@@ -45,6 +70,7 @@
         - backup-config.sh
         - backup-sites.sh
         - backup-mails.sh
+        - backup-offsite.sh
 
     - name: Add backup cron tasks
       cron:
@@ -57,8 +83,18 @@
       loop:
         - { name: 'backup-db', minute: '0', hour: '0', day: '*/2', month: '*', job: '/opt/backups/backup-db.sh >> /var/log/backups.log 2>&1' }
         - { name: 'backup-sites', minute: '0', hour: '0', day: '1', month: '*/3', job: '/opt/backups/backup-sites.sh >> /var/log/backups.log 2>&1' }
-        - { name: 'backup-config', minute: '0', hour: '0', day: '1', month: '*/6', job: '/opt/backups/backup-config.sh >> /var/log/backups.log 2>&1' }
+        - { name: 'backup-config', minute: '30', hour: '0', day: '1,15', month: '*', job: '/opt/backups/backup-config.sh >> /var/log/backups.log 2>&1' }
         - { name: 'backup-mails', minute: '0', hour: '0', day: '*/2', month: '*', job: '/opt/backups/backup-mails.sh >> /var/log/backups.log 2>&1' }
+
+    # Needs /root/.config/rclone/rclone.conf (remotes gdrive + gdrive-crypt),
+    # set up by hand: OAuth token and crypt passwords are never in this repo.
+    - name: Add off-site (Google Drive) cron task
+      cron:
+        name: backup-offsite
+        minute: '0'
+        hour: '3'
+        job: '/opt/backups/backup-offsite.sh >> /var/log/backups.log 2>&1'
+      when: backup_offsite_enabled | default(false)
 
     - name: Create backup log directory
       file:

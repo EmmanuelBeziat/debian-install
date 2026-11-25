@@ -3,10 +3,21 @@
 # Define variables
 DATE=$(date +'%Y.%m.%d')
 ARCHIVE_NAME="/var/backups/server/${DATE}_sites.zip"
-SOURCE_DIRS=(
-    "/var/www/site1"
-    "/var/www/site2"
-)
+
+# Discover every vhost-create-deployed site dynamically instead of a
+# hardcoded list, so newly deployed sites are picked up automatically instead
+# of silently going unbacked-up. backup_sites_extra_dirs (group_vars) lists
+# extra folders outside /var/www/clients, e.g. user uploads of a site whose
+# code lives in git and redeploys via webhook.
+SOURCE_DIRS=()
+shopt -s nullglob
+for dir in /var/www/clients/*/; do
+    SOURCE_DIRS+=("${dir%/}")
+done
+shopt -u nullglob
+{% for dir in backup_sites_extra_dirs | default([]) %}
+SOURCE_DIRS+=("{{ dir }}")
+{% endfor %}
 
 # Create a temporary directory
 TMP_DIR=$(mktemp -d)

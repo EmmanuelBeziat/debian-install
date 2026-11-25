@@ -31,4 +31,13 @@ vmail_home: "/var/mail/vhosts"
 
 crowdsec_whitelist_ip: "YOUR_ADMIN_IP"
 
-install_bind: false
+# bind9: local DNS resolver bound to 127.0.0.1 (kept on the live server)
+install_bind: true
+
+# Backups
+rclone_version: "v1.76.0"
+# Extra folders to back up outside /var/www/clients (e.g. user uploads)
+backup_sites_extra_dirs: []
+#  - "/var/www/example/images/media"
+# Enable only once /root/.config/rclone/rclone.conf is set up by hand
+backup_offsite_enabled: false

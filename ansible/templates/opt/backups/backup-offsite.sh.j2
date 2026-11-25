@@ -1,0 +1,33 @@
+#!/bin/bash
+
+# Encrypted off-host copy of /var/backups/server to Google Drive.
+# Uses the rclone crypt remote "gdrive-crypt" (see /root/.config/rclone/rclone.conf);
+# Google only ever sees encrypted names and content.
+
+SRC="/var/backups/server"
+DEST="gdrive-crypt:"
+DATE=$(date +'%Y.%m.%d')
+STATUS=0
+
+# Upload archives younger than the retention period, then delete remote ones
+# older than it. $1 = retention (rclone duration), remaining args = file patterns.
+sync_group() {
+    local retention="$1"; shift
+    local filters=()
+    for pattern in "$@"; do
+        filters+=(--include "$pattern")
+    done
+    rclone -q copy "$SRC" "$DEST" --max-age "$retention" "${filters[@]}" || STATUS=1
+    rclone -q delete "$DEST" --min-age "$retention" "${filters[@]}" || STATUS=1
+}
+
+sync_group 60d "*_mysql.zip" "*_mails.zip"
+sync_group 365d "*_sites.zip" "*_conf-files.zip"
+
+if [ "$STATUS" -ne 0 ]; then
+    echo "ERROR: off-site sync to Google Drive failed on $DATE" >&2
+else
+    echo "Off-site sync to Google Drive completed on $DATE"
+fi
+
+exit "$STATUS"
