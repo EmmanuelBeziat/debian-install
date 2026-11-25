@@ -89,6 +89,14 @@ dpkg --get-selections > "$TMP_DIR/packages/dpkg-selections.txt"
 apt-mark showmanual > "$TMP_DIR/packages/apt-manual.txt"
 snap list > "$TMP_DIR/packages/snap-list.txt" 2>/dev/null
 
+# Git checkouts under /var/www (path, origin, commit): their code is not in
+# any backup, the restore re-clones them from this list
+find /var/www -maxdepth 4 -type d -name .git -prune | sort | while read -r gitdir; do
+    repo="${gitdir%/.git}"
+    origin=$(git -c safe.directory='*' -C "$repo" remote get-url origin 2>/dev/null) || continue
+    printf '%s\t%s\t%s\n' "$repo" "$origin" "$(git -c safe.directory='*' -C "$repo" rev-parse HEAD)"
+done > "$TMP_DIR/packages/git-repos.tsv"
+
 # Change to the temporary directory to ensure zip archives contents directly
 cd "$TMP_DIR" || exit
 
