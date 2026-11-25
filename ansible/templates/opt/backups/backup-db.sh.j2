@@ -41,6 +41,9 @@ done > "$TMP_DIR/mysql_users_grants.sql"
 # Change to the temporary directory to ensure zip archives contents directly
 cd "$TMP_DIR" || exit
 
+# Replace any archive from an earlier run today (zip -r would merge into it)
+rm -f "$ARCHIVE_NAME"
+
 # Create the archive
 zip -r "$ARCHIVE_NAME" ./*  || { echo "Failed to create zip archive"; exit 1; }
 

@@ -91,7 +91,7 @@ snap list > "$TMP_DIR/packages/snap-list.txt" 2>/dev/null
 
 # Git checkouts under /var/www (path, origin, commit): their code is not in
 # any backup, the restore re-clones them from this list
-find /var/www -maxdepth 4 -type d -name .git -prune | sort | while read -r gitdir; do
+find /var/www -maxdepth 8 -type d -name .git -prune | sort | while read -r gitdir; do
     repo="${gitdir%/.git}"
     origin=$(git -c safe.directory='*' -C "$repo" remote get-url origin 2>/dev/null) || continue
     printf '%s\t%s\t%s\n' "$repo" "$origin" "$(git -c safe.directory='*' -C "$repo" rev-parse HEAD)"
@@ -99,6 +99,9 @@ done > "$TMP_DIR/packages/git-repos.tsv"
 
 # Change to the temporary directory to ensure zip archives contents directly
 cd "$TMP_DIR" || exit
+
+# Replace any archive from an earlier run today (zip -r would merge into it)
+rm -f "$ARCHIVE_NAME"
 
 # Create the archive from the contents of TMP_DIR
 zip -r "$ARCHIVE_NAME" ./*  || { echo "Failed to create zip archive"; exit 1; }
