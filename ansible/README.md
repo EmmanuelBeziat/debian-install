@@ -102,6 +102,27 @@ ansible-playbook -i inventory/hosts.ini playbooks/14-ufw-setup.yml
 ansible-playbook -i inventory/hosts.ini playbooks/16-crowdsec-setup.yml
 ```
 
+## Restauration depuis les sauvegardes
+
+`restore.yml` remet un serveur dans l'état de la dernière sauvegarde, **après** un `site.yml` complet. Il dépose la config (`/etc`, `/opt`, crontab, clés SSH et DKIM…), les bases (comptes et droits compris), les boîtes mail et les fichiers des sites, puis reclone les dépôts git déployés, relance les scripts de déploiement du webhook et les applications PM2.
+
+1. Récupérez les archives (`*_conf-files.zip`, `*_mysql.zip`, `*_mails.zip`, `*_sites.zip`) depuis le FTP ou Google Drive dans un dossier de la machine qui lance Ansible. La plus récente de chaque type est utilisée.
+2. Lancez :
+
+```bash
+ansible-playbook -i inventory/hosts.ini restore.yml -e restore_archives_dir=/chemin/vers/archives
+```
+
+**Par défaut, `restore_test_mode` vaut `true`** : le serveur restauré ne doit pas se comporter comme la production. Pas de crontab (les sauvegardes du serveur de test écraseraient les vraies archives du même jour sur le FTP et le Drive), pas d'identifiants FTP, pas d'alertes `check-services`, pas de renouvellement certbot, et `/etc/hosts` et `/etc/ssh` restent ceux de l'installation. Pour une vraie reprise après sinistre :
+
+```bash
+ansible-playbook -i inventory/hosts.ini restore.yml -e restore_archives_dir=/chemin/vers/archives -e restore_test_mode=false
+```
+
+Pour un test, mettez aussi des **identifiants FTP factices** dans `group_vars/vault.yml` : `site.yml` installe les tâches cron de sauvegarde avant que `restore.yml` ne les retire.
+
+Restent à faire à la main : `claude` (connexion), `/root/.config/rclone/rclone.conf` (jeton Google et mots de passe de chiffrement, jamais sauvegardés), puis faire pointer les DNS et lancer `certbot renew --dry-run` pour une vraie reprise.
+
 ## Structure
 
 ```
@@ -135,6 +156,7 @@ ansible/
 │   └── 24-claude-code-setup.yml # Claude Code
 ├── templates/                 # Templates Jinja2 pour les fichiers de config
 ├── site.yml                   # Playbook complet
+├── restore.yml                # Restauration depuis les sauvegardes
 └── minimal.yml               # Playbook minimal
 ```
 

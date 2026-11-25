@@ -1,0 +1,331 @@
+---
+# Restore a server from its backup archives, on top of a fresh `site.yml` run.
+#
+# Usage (archives downloaded from the FTP or Google Drive into one folder on
+# the controller; the latest archive of each type is used):
+#
+#   ansible-playbook -i inventory/hosts.ini restore.yml -e restore_archives_dir=/path/to/archives
+#
+# restore_test_mode (default: true) restores onto a server that must NOT act as
+# production: no crontab (the backup jobs would overwrite the real archives on
+# the FTP/Drive), no FTP credentials, no health-check alerts, and /etc/hosts,
+# /etc/ssh are left as installed. Pass -e restore_test_mode=false for a real
+# disaster recovery.
+
+- name: Restore from backups
+  hosts: servers
+  become: yes
+
+  vars:
+    restore_test_mode: true
+    restore_dir: /root/restore
+    restore_run_deploy_hooks: true
+    # Never restored: tied to the old machine or managed by this repo's playbooks
+    restore_config_excludes:
+      - /etc/apt/sources.list.d/            # repos + keys come from the playbooks
+      - /etc/systemd/system/snap*           # snap mount units pin old snap revisions
+      - /etc/systemd/system/*/snap*
+      - /etc/mysql/debian.cnf
+      - /root/.my.cnf                       # root password comes from vault.yml
+      - /etc/crowdsec/local_api_credentials.yaml   # registered in the old LAPI database
+      - /etc/crowdsec/online_api_credentials.yaml
+      - /etc/crowdsec/bouncers/
+    restore_config_excludes_test:
+      - /etc/hosts
+      - /etc/ssh/
+      - /var/spool/cron/
+      - /etc/cron.d/
+      - /root/.ftp_credentials
+    # Ownership is not reliable in the archives (numeric ids may differ on a
+    # new server): reset it by name for every non-root path the backup contains
+    # (order matters: a folder first, then the files inside it that differ)
+    restore_ownership:
+      - { path: /var/lib/rspamd/dkim, owner: _rspamd, group: _rspamd, recurse: true }
+      - { path: /etc/bind, owner: root, group: bind, recurse: true }
+      - { path: /etc/bind/rndc.key, owner: bind, group: bind }
+      - { path: /etc/redis, owner: redis, group: redis, recurse: true }
+      - { path: /etc/redis/redis.conf, owner: root, group: redis }
+      - { path: /etc/rspamd/override.d, owner: root, group: _rspamd, recurse: true }
+      - { path: /etc/dovecot/dovecot-sql.conf.ext, owner: root, group: dovecot }
+      - { path: /etc/dovecot/dovecot-dict-auth.conf.ext, owner: root, group: dovecot }
+      - { path: /etc/dovecot/dovecot-dict-sql.conf.ext, owner: root, group: dovecot }
+      - { path: /etc/dovecot/private, owner: root, group: ssl-cert, recurse: true }
+      - { path: /etc/dovecot/sieve, owner: vmail, group: vmail, recurse: true }
+      - { path: /etc/postfix/conf, owner: root, group: postfix, recurse: true }
+      - { path: /etc/nginx/.htpasswd-sql, owner: root, group: nginx }
+    restore_services:
+      - redis-server
+      - rspamd
+      - mariadb
+      - "php{{ php_version }}-fpm"
+      - apache2
+      - nginx
+      - postfix
+      - dovecot
+      - bind9
+      - crowdsec
+      - go-webhook
+
+  tasks:
+    - name: Check that the archives folder is given
+      assert:
+        that: restore_archives_dir is defined
+        fail_msg: "Pass -e restore_archives_dir=/path/to/archives (folder on the controller)"
+
+    - name: Find the latest archive of each type on the controller
+      delegate_to: localhost
+      become: no
+      run_once: yes
+      find:
+        paths: "{{ restore_archives_dir }}"
+        patterns: "*_{{ item }}.zip"
+      loop: [conf-files, mysql, mails, sites]
+      register: found_archives
+
+    - name: Pick the latest archive per type
+      set_fact:
+        restore_archives: "{{ restore_archives | default({}) | combine({item.item: (item.files | map(attribute='path') | sort | last)}) }}"
+      loop: "{{ found_archives.results }}"
+      when: item.files | length > 0
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Show what will be restored
+      debug:
+        msg: "Test mode: {{ restore_test_mode }} — archives: {{ restore_archives | default({}) }}"
+
+    - name: A config archive is required
+      assert:
+        that: "'conf-files' in restore_archives | default({})"
+        fail_msg: "No *_conf-files.zip found in {{ restore_archives_dir }}"
+
+    - name: Create restore folders
+      file:
+        path: "{{ restore_dir }}/{{ item.key }}"
+        state: directory
+        mode: '0700'
+      loop: "{{ restore_archives | dict2items }}"
+
+    - name: Upload and extract archives
+      unarchive:
+        src: "{{ item.value }}"
+        dest: "{{ restore_dir }}/{{ item.key }}"
+      loop: "{{ restore_archives | dict2items }}"
+
+    # ---------------------------------------------------------------- config
+    - name: Create the users that own a home folder in the backup
+      shell: |
+        set -e
+        for home in {{ restore_dir }}/conf-files/home/*/; do
+          [ -d "$home" ] || continue
+          user=$(basename "$home")
+          id "$user" >/dev/null 2>&1 || { useradd --create-home --shell /bin/bash "$user"; echo "created $user"; }
+        done
+      register: users_created
+      changed_when: "'created' in users_created.stdout"
+
+    # --relative + "/./": each archived path lands at the same absolute path;
+    # excludes are anchored at / (e.g. /etc/hosts)
+    - name: Restore configuration files
+      shell: |
+        set -e
+        cd {{ restore_dir }}/conf-files
+        sources=()
+        for top in etc opt root usr var home; do
+          [ -d "$top" ] && sources+=("./$top")
+        done
+        rsync -a --relative \
+        {% for path in restore_config_excludes + (restore_config_excludes_test if restore_test_mode else []) %}
+          --exclude='{{ path }}' \
+        {% endfor %}
+          "${sources[@]}" /
+      args:
+        executable: /bin/bash
+
+    - name: Reset ownership of service-owned config paths
+      shell: |
+        [ -e "{{ item.path }}" ] || exit 0
+        chown {{ '-R' if item.recurse | default(false) else '' }} "{{ item.owner }}:{{ item.group }}" "{{ item.path }}"
+      loop: "{{ restore_ownership }}"
+      changed_when: false
+
+    - name: Reset ownership of home folders
+      shell: |
+        for home in /home/*/; do
+          user=$(basename "$home")
+          id "$user" >/dev/null 2>&1 && chown -R "$user:$user" "$home"
+        done
+      changed_when: false
+
+    - name: Restore root crontab permissions
+      file:
+        path: /var/spool/cron/crontabs/root
+        owner: root
+        group: crontab
+        mode: '0600'
+      when: not restore_test_mode
+      failed_when: false
+
+    - name: Create the log folders referenced by Nginx and Apache vhosts
+      shell: |
+        {
+          grep -rhoE '(access_log|error_log)\s+/[^ ;]+' /etc/nginx | awk '{print $2}'
+          grep -rhoE '(ErrorLog|CustomLog)\s+\S+' /etc/apache2/sites-available | awk '{print $2}' | sed 's#${APACHE_LOG_DIR}#/var/log/apache2#'
+        } | xargs -r -n1 dirname | sort -u | xargs -r mkdir -p
+      changed_when: false
+
+    - name: Reload systemd units
+      systemd:
+        daemon_reload: yes
+
+    # ------------------------------------------------------------- test mode
+    - name: "Test mode: remove root crontab (backup jobs would overwrite real archives)"
+      command: crontab -r
+      when: restore_test_mode
+      failed_when: false
+
+    - name: "Test mode: remove FTP credentials"
+      file:
+        path: /root/.ftp_credentials
+        state: absent
+      when: restore_test_mode
+
+    - name: "Test mode: stop health-check alerts"
+      systemd:
+        name: check-services.timer
+        state: stopped
+        enabled: no
+      when: restore_test_mode
+      failed_when: false
+
+    # Failed validations from this server would count against the real
+    # server's Let's Encrypt account (the account is part of the restore)
+    - name: "Test mode: stop certificate renewal"
+      systemd:
+        name: snap.certbot.renew.timer
+        state: stopped
+        enabled: no
+      when: restore_test_mode
+      failed_when: false
+
+    # -------------------------------------------------------------- MariaDB
+    - name: Restore databases
+      shell: |
+        set -e
+        for dump in {{ restore_dir }}/mysql/*.sql; do
+          db=$(basename "$dump" .sql)
+          case "$db" in mysql_users*) continue ;; esac
+          mysql -e "CREATE DATABASE IF NOT EXISTS \`$db\`"
+          mysql "$db" < "$dump"
+          echo "restored $db"
+        done
+      when: "'mysql' in restore_archives"
+      register: db_restore
+
+    # root comes from vault.yml, mariadb.sys/mysql are system accounts
+    - name: Restore database accounts and grants
+      shell: |
+        set -e
+        f={{ restore_dir }}/mysql/mysql_users_grants.sql
+        [ -f "$f" ] || exit 0
+        grep -vE "\`(root|mariadb\.sys|mysql)\`@" "$f" \
+          | sed -E 's/^CREATE USER /CREATE OR REPLACE USER /' \
+          | mysql --force
+        mysql -e "FLUSH PRIVILEGES"
+      when: "'mysql' in restore_archives"
+
+    # ---------------------------------------------------------------- mails
+    - name: Restore mailboxes
+      shell: |
+        set -e
+        rsync -a {{ restore_dir }}/mails/var/mail/vhosts/ /var/mail/vhosts/
+        chown -R vmail:vmail /var/mail/vhosts
+      when: "'mails' in restore_archives"
+
+    # ---------------------------------------------------------------- sites
+    # The archive holds one folder per backed-up dir, named after its basename:
+    # /var/www/clients/<name> for clients, backup_sites_extra_dirs for the rest
+    - name: Restore site files
+      shell: |
+        set -e
+        cd {{ restore_dir }}/sites
+        for dir in */; do
+          name="${dir%/}"
+          dest="/var/www/clients/$name"
+          {% for extra in backup_sites_extra_dirs | default([]) %}
+          [ "$name" = "{{ extra | basename }}" ] && dest="{{ extra }}"
+          {% endfor %}
+          mkdir -p "$dest"
+          rsync -a "$name/" "$dest/"
+          echo "$name -> $dest"
+        done
+      when: "'sites' in restore_archives"
+      register: sites_restore
+
+    # ------------------------------------------------- git-deployed code
+    - name: Re-clone the git checkouts recorded in the backup
+      shell: |
+        list={{ restore_dir }}/conf-files/packages/git-repos.tsv
+        [ -f "$list" ] || exit 0
+        while IFS=$'\t' read -r path origin commit; do
+          if [ ! -d "$path/.git" ]; then
+            mkdir -p "$path"
+            git clone --quiet "$origin" "$path.tmp" </dev/null \
+              && cp -a "$path.tmp/." "$path/" && rm -rf "$path.tmp" \
+              || { echo "FAILED clone $origin"; continue; }
+          fi
+          git -C "$path" fetch --quiet --all </dev/null
+          git -C "$path" checkout --quiet --force "$commit" </dev/null && echo "ok $path" || echo "FAILED checkout $path"
+        done < "$list"
+      args:
+        executable: /bin/bash
+      register: git_restore
+      changed_when: "'ok ' in git_restore.stdout"
+
+    # The webhook deploy scripts install dependencies and build (npm ci…)
+    - name: Run the webhook deploy scripts
+      shell: |
+        for script in /usr/share/hooks/*/deploy.sh; do
+          [ -x "$script" ] || continue
+          bash "$script" && echo "ok $script" || echo "FAILED $script"
+        done
+      args:
+        executable: /bin/bash
+      when: restore_run_deploy_hooks
+      register: hooks_restore
+
+    - name: Restart PM2 apps from the restored dump
+      shell: |
+        . /root/.nvm/nvm.sh
+        pm2 resurrect && pm2 save
+      args:
+        executable: /bin/bash
+      failed_when: false
+
+    # ------------------------------------------------------------- services
+    - name: Restart services
+      systemd:
+        name: "{{ item }}"
+        state: restarted
+      loop: "{{ restore_services }}"
+      failed_when: false
+
+    - name: Collect service states
+      shell: |
+        for s in {{ restore_services | join(' ') }}; do
+          echo "$s: $(systemctl is-active "$s")"
+        done
+      changed_when: false
+      register: services_state
+
+    - name: Summary
+      debug:
+        msg:
+          - "Databases: {{ db_restore.stdout_lines | default(['skipped']) }}"
+          - "Sites: {{ sites_restore.stdout_lines | default(['skipped']) }}"
+          - "Git: {{ git_restore.stdout_lines | default([]) }}"
+          - "Deploy hooks: {{ hooks_restore.stdout_lines | default(['skipped']) }}"
+          - "Services: {{ services_state.stdout_lines }}"
+          - "Then run the check-web-services and check-mail-services skills."
+          - "Manual steps: `claude` login, /root/.config/rclone/rclone.conf, CrowdSec bouncer check."
+          - "{{ 'TEST MODE: no crontab, no FTP credentials, check-services timer off.' if restore_test_mode else 'Real restore: point DNS here, then run certbot renew --dry-run.' }}"
