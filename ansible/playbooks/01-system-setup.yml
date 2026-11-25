@@ -34,6 +34,12 @@
           - git
           - rsync
           - needrestart
+          - nano
+          - lsof
+          - strace
+          - traceroute
+          - netcat-traditional
+          - build-essential
         state: present
 
     - name: Configure git
