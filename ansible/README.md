@@ -99,7 +99,6 @@ ansible-playbook -i inventory/hosts.ini playbooks/11-mail-server.yml
 
 # Sécurité
 ansible-playbook -i inventory/hosts.ini playbooks/14-ufw-setup.yml
-ansible-playbook -i inventory/hosts.ini playbooks/15-fail2ban-setup.yml
 ansible-playbook -i inventory/hosts.ini playbooks/16-crowdsec-setup.yml
 ```
 
@@ -128,12 +127,8 @@ ansible/
 │   ├── 12-rspamd-setup.yml    # Antispam (RSpamD + Redis)
 │   ├── 13-dkim-setup.yml      # Configuration DKIM
 │   ├── 14-ufw-setup.yml       # Firewall UFW
-│   ├── 15-fail2ban-setup.yml  # Fail2ban
 │   ├── 16-crowdsec-setup.yml  # CrowdSec
-│   ├── 17-netdata-setup.yml   # Netdata monitoring
 │   ├── 18-logrotate-setup.yml # Logrotate
-│   ├── 19-monit-setup.yml     # Monit + alertes
-│   ├── 20-vpn-setup.yml       # OpenVPN
 │   └── 21-backup-setup.yml    # Sauvegardes FTP
 ├── templates/                 # Templates Jinja2 pour les fichiers de config
 ├── site.yml                   # Playbook complet
@@ -143,6 +138,7 @@ ansible/
 ## Important
 
 - **Ne modifiez PAS le README.md principal**
+- Les playbooks suivent le serveur réellement en production, et divergent donc du README principal sur ces points : Fail2ban (remplacé par CrowdSec), Netdata, Monit et OpenVPN ne sont plus installés (playbooks 15, 17, 19 et 20 supprimés, numérotation conservée)
 - Les fichiers sensibles (mots de passe) sont dans `group_vars/vault.yml` qui est exclu de Git
 - Après l'exécution, pensez à :
   1. Ajouter vos clés SSH à `/root/.ssh/authorized_keys`

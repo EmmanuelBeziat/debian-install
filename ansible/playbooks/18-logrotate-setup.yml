@@ -69,22 +69,6 @@
           }
         mode: '0644'
 
-    - name: Configure Fail2ban logrotate
-      copy:
-        dest: /etc/logrotate.d/fail2ban
-        content: |
-          /var/log/fail2ban.log {
-              daily
-              rotate 7
-              compress
-              delaycompress
-              missingok
-              notifempty
-              postrotate
-                  systemctl reload fail2ban
-              endscript
-          }
-        mode: '0644'
 
     - name: Configure rsyslog logrotate
       copy:

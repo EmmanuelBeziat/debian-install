@@ -18,15 +18,6 @@
         app_description: "OpenSSH is a free implementation of the Secure Shell protocol."
         app_ports: "{{ ssh_port }}/tcp"
 
-    - name: Create OpenVPN UFW profile
-      template:
-        src: ../templates/etc/ufw/applications.d/ufw-app.j2
-        dest: /etc/ufw/applications.d/openvpn
-        mode: '0644'
-      vars:
-        app_title: "OpenVPN Server"
-        app_description: "Open Source VPN"
-        app_ports: "{{ openvpn_port | default(1194) }}/udp"
 
     - name: Allow SSH
       ufw:
@@ -87,11 +78,6 @@
         port: '995'
         proto: tcp
 
-    - name: Allow OpenVPN
-      ufw:
-        rule: allow
-        name: OpenVPN Server
-      when: openvpn_port is defined
 
     - name: Enable UFW
       ufw:
