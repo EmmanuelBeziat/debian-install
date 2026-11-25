@@ -129,7 +129,10 @@ ansible/
 │   ├── 14-ufw-setup.yml       # Firewall UFW
 │   ├── 16-crowdsec-setup.yml  # CrowdSec
 │   ├── 18-logrotate-setup.yml # Logrotate
-│   └── 21-backup-setup.yml    # Sauvegardes FTP
+│   ├── 21-backup-setup.yml    # Sauvegardes FTP
+│   ├── 22-screenshot-service.yml # Service ShareX (SFTP chroot)
+│   ├── 23-lynis-setup.yml     # Lynis + BIND
+│   └── 24-claude-code-setup.yml # Claude Code
 ├── templates/                 # Templates Jinja2 pour les fichiers de config
 ├── site.yml                   # Playbook complet
 └── minimal.yml               # Playbook minimal

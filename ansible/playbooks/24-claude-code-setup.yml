@@ -1,0 +1,43 @@
+- name: Claude Code setup
+  hosts: servers
+  become: yes
+
+  vars:
+    claude_bin: "/root/.local/bin/claude"
+
+  tasks:
+    - name: Check whether Claude Code is already installed
+      stat:
+        path: "{{ claude_bin }}"
+      register: claude_installed
+
+    - name: Install Claude Code (native installer)
+      when: not claude_installed.stat.exists
+      block:
+        - name: Download installer
+          get_url:
+            url: https://claude.ai/install.sh
+            dest: /tmp/claude-install.sh
+            mode: '0700'
+
+        - name: Run installer
+          command: bash /tmp/claude-install.sh
+
+        - name: Remove installer
+          file:
+            path: /tmp/claude-install.sh
+            state: absent
+
+    - name: Add ~/.local/bin to root PATH
+      lineinfile:
+        path: /root/.bashrc
+        line: 'export PATH="/root/.local/bin:$PATH"'
+        state: present
+
+    - name: Next steps
+      debug:
+        msg: |
+          Claude Code installed at {{ claude_bin }}.
+          Its config (~/.claude, /root/server-doc) comes from the config backup
+          (see the restore procedure), not from this playbook.
+          Log in interactively with `claude` (credentials are never backed up).

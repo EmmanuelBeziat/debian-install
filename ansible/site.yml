@@ -18,3 +18,4 @@
 - import_playbook: playbooks/21-backup-setup.yml
 - import_playbook: playbooks/22-screenshot-service.yml
 - import_playbook: playbooks/23-lynis-setup.yml
+- import_playbook: playbooks/24-claude-code-setup.yml
