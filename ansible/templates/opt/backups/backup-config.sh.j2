@@ -64,6 +64,8 @@ CONFIG_FILES=(
 )
 shopt -s nullglob
 CONFIG_FILES+=(/home/*/.ssh/ /root/.claude/projects/*/memory/)
+# App secrets (.env) of git-deployed sites: the code comes back from git, these don't
+CONFIG_FILES+=(/var/www/*/*/.env /var/www/*/*/*/.env)
 shopt -u nullglob
 
 # Maximum file size parameter (e.g., 1024m for 1024 MB); leave empty for no limit
