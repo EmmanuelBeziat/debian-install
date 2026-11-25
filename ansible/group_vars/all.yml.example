@@ -36,8 +36,10 @@ install_bind: true
 
 # Backups
 rclone_version: "v1.76.0"
-# Extra folders to back up outside /var/www/clients (e.g. user uploads)
-backup_sites_extra_dirs: []
-#  - "/var/www/example/images/media"
+# Site content that exists nowhere else (not in git, not built by CI):
+# uploads, plugins installed from the WordPress admin, custom wp-config.php...
+backup_sites_paths: []
+#  - "/var/www/clients/example/site/wp-config.php"
+#  - "/var/www/clients/example/site/wp-content/uploads"
 # Enable only once /root/.config/rclone/rclone.conf is set up by hand
 backup_offsite_enabled: false

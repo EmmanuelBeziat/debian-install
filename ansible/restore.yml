@@ -243,24 +243,42 @@
       when: "'mails' in restore_archives"
 
     # ---------------------------------------------------------------- sites
-    # The archive holds one folder per backed-up dir, named after its basename:
-    # /var/www/clients/<name> for clients, backup_sites_extra_dirs for the rest
+    # Paths are stored in full (rsync --relative): put them back as they were.
+    # ownership.tsv / wordpress.tsv at the archive root are metadata.
     - name: Restore site files
       shell: |
         set -e
         cd {{ restore_dir }}/sites
-        for dir in */; do
-          name="${dir%/}"
-          dest="/var/www/clients/$name"
-          {% for extra in backup_sites_extra_dirs | default([]) %}
-          [ "$name" = "{{ extra | basename }}" ] && dest="{{ extra }}"
-          {% endfor %}
-          mkdir -p "$dest"
-          rsync -a "$name/" "$dest/"
-          echo "$name -> $dest"
-        done
+        rsync -a --exclude=/ownership.tsv --exclude=/wordpress.tsv ./ /
+        [ -f ownership.tsv ] || exit 0
+        while IFS=$'\t' read -r owner path; do
+          id "${owner%%:*}" >/dev/null 2>&1 && chown -R "$owner" "$path"
+        done < ownership.tsv
+      args:
+        executable: /bin/bash
       when: "'sites' in restore_archives"
-      register: sites_restore
+
+    # WordPress core is not backed up: download the recorded version, without
+    # its wp-content (plugins, uploads and theme come from the backup and git)
+    - name: Reinstall WordPress core
+      shell: |
+        set -e
+        list={{ restore_dir }}/sites/wordpress.tsv
+        [ -f "$list" ] || exit 0
+        while IFS=$'\t' read -r site version; do
+          [ -f "$site/wp-includes/version.php" ] && continue
+          tmp=$(mktemp -d)
+          curl -fsSL "https://wordpress.org/wordpress-$version.tar.gz" | tar xz -C "$tmp"
+          rsync -a --ignore-existing --exclude=/wp-content/ "$tmp/wordpress/" "$site/"
+          rsync -a --ignore-existing "$tmp/wordpress/wp-content/index.php" "$site/wp-content/"
+          rm -rf "$tmp"
+          chown -R www-data:www-data "$site"
+          echo "WordPress $version -> $site"
+        done < "$list"
+      args:
+        executable: /bin/bash
+      when: "'sites' in restore_archives"
+      register: wordpress_restore
 
     # ------------------------------------------------- git-deployed code
     - name: Re-clone the git checkouts recorded in the backup
@@ -322,7 +340,7 @@
       debug:
         msg:
           - "Databases: {{ db_restore.stdout_lines | default(['skipped']) }}"
-          - "Sites: {{ sites_restore.stdout_lines | default(['skipped']) }}"
+          - "WordPress core: {{ wordpress_restore.stdout_lines | default(['skipped']) }}"
           - "Git: {{ git_restore.stdout_lines | default([]) }}"
           - "Deploy hooks: {{ hooks_restore.stdout_lines | default(['skipped']) }}"
           - "Services: {{ services_state.stdout_lines }}"

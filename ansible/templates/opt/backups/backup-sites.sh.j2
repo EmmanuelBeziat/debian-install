@@ -4,58 +4,57 @@
 DATE=$(date +'%Y.%m.%d')
 ARCHIVE_NAME="/var/backups/server/${DATE}_sites.zip"
 
-# Discover every vhost-create-deployed site dynamically instead of a
-# hardcoded list, so newly deployed sites are picked up automatically instead
-# of silently going unbacked-up. backup_sites_extra_dirs (group_vars) lists
-# extra folders outside /var/www/clients, e.g. user uploads of a site whose
-# code lives in git and redeploys via webhook.
-SOURCE_DIRS=()
-shopt -s nullglob
-for dir in /var/www/clients/*/; do
-    SOURCE_DIRS+=("${dir%/}")
-done
-shopt -u nullglob
-{% for dir in backup_sites_extra_dirs | default([]) %}
-SOURCE_DIRS+=("{{ dir }}")
+# Only content that exists nowhere else. Sites deployed from git or built by
+# CI are NOT listed: their code comes back from GitHub. The list is
+# backup_sites_paths in group_vars: add any new site with user content
+# (uploads, plugins installed from its admin...).
+SOURCE_PATHS=(
+{% for path in backup_sites_paths | default([]) %}
+    "{{ path }}"
 {% endfor %}
+)
 
 # Create a temporary directory
 TMP_DIR=$(mktemp -d)
 
-# Exclude only regenerable content. WordPress core (wp-admin, wp-includes) is
-# kept: broad patterns like *cache*/*temp* used to drop core files such as
-# wp-includes/class-wp-feed-cache.php, making restored sites unusable.
 EXCLUDES=(
-    "--exclude=wp-content/cache/"
-    "--exclude=wp-content/upgrade/"
     "--exclude=node_modules/"
     "--exclude=.well-known/"
     "--exclude=*.log"
 )
 
-# Copy files to the temporary directory while excluding specific folders
-for SOURCE_DIR in "${SOURCE_DIRS[@]}"; do
-    # Get the base name of the source directory (to create a subdirectory)
-    DIR_NAME=$(basename "$SOURCE_DIR")
-
-    # Create a corresponding directory in the temporary directory
-    mkdir -p "$TMP_DIR/$DIR_NAME"
-
-    # Copy files to the corresponding subdirectory
-    timeout 15m rsync -av --prune-empty-dirs --max-size=256m "${EXCLUDES[@]}" "$SOURCE_DIR/" "$TMP_DIR/$DIR_NAME/"
+# --relative keeps full paths in the archive: restore = unzip, then rsync to /
+for SOURCE_PATH in "${SOURCE_PATHS[@]}"; do
+    timeout 15m rsync -a --relative --max-size=256m "${EXCLUDES[@]}" "$SOURCE_PATH" "$TMP_DIR/"
 done
+
+# Restore metadata, at the archive root (not restored as files):
+# - ownership.tsv: owner of each backed-up path (zip ids are not reliable
+#   on a new server)
+# - wordpress.tsv: WordPress sites and their version, as the core is not
+#   backed up and must be re-downloaded in the same version
+for SOURCE_PATH in "${SOURCE_PATHS[@]}"; do
+    [ -e "$SOURCE_PATH" ] && stat -c $'%U:%G\t%n' "$SOURCE_PATH"
+done > "$TMP_DIR/ownership.tsv"
+find /var/www -maxdepth 8 -path '*/wp-includes/version.php' | while read -r version_file; do
+    printf '%s\t%s\n' "${version_file%/wp-includes/version.php}" \
+        "$(grep -oP '^\$wp_version\s*=\s*.\K[^'\''"]+' "$version_file")"
+done > "$TMP_DIR/wordpress.tsv"
 
 # Change to the temporary directory to ensure zip archives contents directly
 cd "$TMP_DIR" || exit
 
+# Replace any archive from an earlier run today (zip -r would merge into it)
+rm -f "$ARCHIVE_NAME"
+
 # Create the archive
-zip -r "$ARCHIVE_NAME" ./*
+zip -rq "$ARCHIVE_NAME" ./*
 
 # Check if the archive was created successfully
 if [ -f "$ARCHIVE_NAME" ]; then
     echo "Backup of sites completed successfully: $ARCHIVE_NAME"
 else
-    echo "Failed to create the site backup archive."
+    echo "ERROR: failed to create the site backup archive $ARCHIVE_NAME" >&2
 fi
 
 # Clean up
