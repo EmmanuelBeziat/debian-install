@@ -22,17 +22,15 @@ SOURCE_DIRS+=("{{ dir }}")
 # Create a temporary directory
 TMP_DIR=$(mktemp -d)
 
-# Exclude patterns
+# Exclude only regenerable content. WordPress core (wp-admin, wp-includes) is
+# kept: broad patterns like *cache*/*temp* used to drop core files such as
+# wp-includes/class-wp-feed-cache.php, making restored sites unusable.
 EXCLUDES=(
-    "--exclude=wp-admin"
-    "--exclude=wp-includes"
-    "--exclude=*cache*"
-    "--exclude=*backup*"
-    "--exclude=*temp*"
-    "--exclude=*tmp*"
-    "--exclude=*logs*"
-    "--exclude=node_modules"
-    "--exclude=.well-known"
+    "--exclude=wp-content/cache/"
+    "--exclude=wp-content/upgrade/"
+    "--exclude=node_modules/"
+    "--exclude=.well-known/"
+    "--exclude=*.log"
 )
 
 # Copy files to the temporary directory while excluding specific folders
