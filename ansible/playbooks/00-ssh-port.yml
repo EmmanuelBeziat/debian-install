@@ -1,0 +1,21 @@
+# Pick the SSH port to connect on: {{ ssh_port }} once 02-ssh-setup has run,
+# 22 on a fresh server. Imported by the playbooks that can run first.
+- name: Detect the SSH port
+  hosts: servers
+  gather_facts: no
+
+  tasks:
+    - name: Check whether the hardened SSH port is open
+      wait_for:
+        host: "{{ ansible_host }}"
+        port: "{{ ssh_port }}"
+        timeout: 5
+      delegate_to: localhost
+      become: no
+      register: hardened_port
+      ignore_errors: yes
+
+    - name: Fall back to port 22 on a fresh server
+      set_fact:
+        ansible_port: 22
+      when: hardened_port is failed

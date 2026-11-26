@@ -1,3 +1,5 @@
+- import_playbook: 00-ssh-port.yml
+
 - name: System initial setup
   hosts: servers
   become: yes

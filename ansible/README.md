@@ -6,7 +6,8 @@ Automatisation complète de l'installation d'un serveur Debian avec Ansible, bas
 
 - Ansible 2.9+
 - Accès SSH root au serveur Debian
-- Une clé SSH configurée dans `~/.ssh/authorized_keys` du serveur
+- Une clé SSH publique renseignée dans `ssh_authorized_keys` (`group_vars/all.yml`) : `02-ssh-setup.yml` la dépose avant de couper la connexion par mot de passe, et refuse de tourner sans elle
+- Sur un serveur neuf qui n'accepte que le mot de passe : `ssh-copy-id root@IP` avant le premier lancement. Le port (22 sur un serveur neuf, `ssh_port` ensuite) est détecté automatiquement
 
 ## Installation
 
@@ -166,11 +167,10 @@ ansible/
 - Les playbooks suivent le serveur réellement en production, et divergent donc du README principal sur ces points : Fail2ban (remplacé par CrowdSec), Netdata, Monit et OpenVPN ne sont plus installés (playbooks 15, 17, 19 et 20 supprimés, numérotation conservée)
 - Les fichiers sensibles (mots de passe) sont dans `group_vars/vault.yml` qui est exclu de Git
 - Après l'exécution, pensez à :
-  1. Ajouter vos clés SSH à `/root/.ssh/authorized_keys`
-  2. Configurer vos DNS (MX, SPF, DKIM, DMARC)
-  3. Générer vos certificats SSL avec Certbot
-  4. Configurer vos domaines dans Apache/Nginx
-  5. Créer vos comptes mail dans la base de données
+  1. Configurer vos DNS (MX, SPF, DKIM, DMARC)
+  2. Générer vos certificats SSL avec Certbot
+  3. Configurer vos domaines dans Apache/Nginx
+  4. Créer vos comptes mail dans la base de données
 
 ## Variables importantes
 
@@ -178,6 +178,7 @@ ansible/
 |----------|-------------|
 | `server_ip` | IP publique du serveur |
 | `ssh_port` | Port SSH (défaut: 2222) |
+| `ssh_authorized_keys` | Clés publiques autorisées pour root (obligatoire) |
 | `mail_domain` | Domaine principal pour les mails |
 | `dkim_domains` | Liste des domaines avec configuration DKIM |
 | `crowdsec_whitelist_ip` | IP à whitelister dans CrowdSec |

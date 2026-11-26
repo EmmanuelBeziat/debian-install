@@ -1,8 +1,34 @@
+- import_playbook: 00-ssh-port.yml
+
 - name: SSH configuration
   hosts: servers
   become: yes
-  
+
   tasks:
+    - name: Refuse to disable password login without a public key to deploy
+      assert:
+        that: ssh_authorized_keys | default([]) | length > 0
+        fail_msg: "Set ssh_authorized_keys in group_vars/all.yml, or this playbook locks you out."
+
+    - name: Authorize the admin public keys for root
+      authorized_key:
+        user: root
+        key: "{{ item }}"
+      loop: "{{ ssh_authorized_keys }}"
+
+    - name: Check whether SSH socket activation is in use
+      command: systemctl is-enabled ssh.socket
+      register: ssh_socket
+      changed_when: false
+      failed_when: false
+
+    - name: Disable SSH socket activation (it ignores the Port directive)
+      systemd:
+        name: ssh.socket
+        enabled: no
+        state: stopped
+      when: ssh_socket.stdout in ['enabled', 'indirect']
+
     - name: Configure SSH
       template:
         src: ../templates/etc/ssh/sshd_config.j2
@@ -10,6 +36,7 @@
         owner: root
         group: root
         mode: '0644'
+        validate: /usr/sbin/sshd -t -f %s
       notify: restart ssh
 
     - name: Ensure SSH is enabled on boot
@@ -17,6 +44,17 @@
         name: ssh
         enabled: yes
         state: started
+
+    - name: Apply the new SSH configuration now
+      meta: flush_handlers
+
+    - name: Connect on the hardened port from now on
+      set_fact:
+        ansible_port: "{{ ssh_port }}"
+
+    - name: Check the server is reachable on the hardened port with the key
+      wait_for_connection:
+        timeout: 30
 
   handlers:
     - name: restart ssh

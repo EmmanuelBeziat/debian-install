@@ -3,6 +3,9 @@ server_hostname: "YOUR_HOSTNAME"
 server_timezone: "Europe/Paris"
 
 ssh_port: 2222
+# Public keys allowed to log in as root (password login is disabled by 02-ssh-setup)
+ssh_authorized_keys:
+  - "ssh-ed25519 AAAA... your_key_comment"
 ssh_admin_email: "admin@example.com"
 
 apache_port: 8085
