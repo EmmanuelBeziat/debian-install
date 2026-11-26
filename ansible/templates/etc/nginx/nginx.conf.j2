@@ -29,8 +29,6 @@ http {
 	access_log /var/log/nginx/access.log;
 	error_log /var/log/nginx/error.log;
 
-	include /etc/nginx/snippets/gzip-config.conf;
-
 	include /etc/nginx/conf.d/*.conf;
 	include /etc/nginx/sites-enabled/*;
 }

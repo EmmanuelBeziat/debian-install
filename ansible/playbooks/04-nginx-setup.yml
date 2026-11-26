@@ -36,6 +36,7 @@
         - /etc/nginx/snippets
         - /etc/nginx/sites-available
         - /etc/nginx/sites-enabled
+        - /var/lib/nginx
 
     - name: Configure Nginx main config
       template:
