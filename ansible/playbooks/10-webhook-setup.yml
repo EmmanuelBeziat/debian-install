@@ -46,15 +46,21 @@
         state: directory
         mode: '0755'
 
+    - name: Create webhook service directory
+      file:
+        path: /opt/webhook
+        state: directory
+        mode: '0755'
+
     - name: Create custom webhook service
       template:
         src: ../templates/etc/systemd/system/go-webhook.service.j2
-        dest: /opt/webhook/go-webhook.service
+        dest: /opt/webhook/webhook.service
         mode: '0644'
 
     - name: Create symlink for service
       file:
-        src: /opt/webhook/go-webhook.service
+        src: /opt/webhook/webhook.service
         dest: /etc/systemd/system/go-webhook.service
         state: link
       notify: restart go-webhook
