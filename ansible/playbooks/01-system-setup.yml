@@ -23,7 +23,6 @@
     - name: Install base packages
       apt:
         name:
-          - software-properties-common
           - gnupg2
           - curl
           - wget
