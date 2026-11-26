@@ -34,6 +34,7 @@
     restore_config_excludes_test:
       - /etc/hosts
       - /etc/ssh/
+      - /root/.ssh/authorized_keys          # keep the keys that reach the test server
       - /var/spool/cron/
       - /etc/cron.d/
       - /root/.ftp_credentials
@@ -175,6 +176,14 @@
     - name: Reload systemd units
       systemd:
         daemon_reload: yes
+
+    # /etc/ufw comes from the old server: its SSH rule is for the old port
+    - name: Keep SSH reachable through the restored firewall rules
+      ufw:
+        rule: allow
+        port: "{{ ssh_port }}"
+        proto: tcp
+        comment: SSH
 
     # /etc/dovecot is not restored: rebuild it now that the Let's Encrypt
     # certificates are back
