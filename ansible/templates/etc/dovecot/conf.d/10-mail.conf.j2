@@ -1,4 +1,7 @@
-mail_location = maildir:{{ vmail_home }}/%d/%n/Maildir
+# Dovecot 2.4
+mail_driver = maildir
+mail_path = {{ vmail_home }}/%{user | domain}/%{user | username}/Maildir
+mail_privileged_group = mail
 
 namespace inbox {
   inbox = yes

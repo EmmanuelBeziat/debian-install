@@ -30,6 +30,7 @@
       - /etc/crowdsec/local_api_credentials.yaml   # registered in the old LAPI database
       - /etc/crowdsec/online_api_credentials.yaml
       - /etc/crowdsec/bouncers/
+      - /etc/dovecot/                       # 2.3 syntax, rebuilt for 2.4 by tasks/dovecot-config.yml
     restore_config_excludes_test:
       - /etc/hosts
       - /etc/ssh/
@@ -46,9 +47,6 @@
       - { path: /etc/redis, owner: redis, group: redis, recurse: true }
       - { path: /etc/redis/redis.conf, owner: root, group: redis }
       - { path: /etc/rspamd/override.d, owner: root, group: _rspamd, recurse: true }
-      - { path: /etc/dovecot/dovecot-sql.conf.ext, owner: root, group: dovecot }
-      - { path: /etc/dovecot/dovecot-dict-auth.conf.ext, owner: root, group: dovecot }
-      - { path: /etc/dovecot/dovecot-dict-sql.conf.ext, owner: root, group: dovecot }
       - { path: /etc/dovecot/private, owner: root, group: ssl-cert, recurse: true }
       - { path: /etc/dovecot/sieve, owner: vmail, group: vmail, recurse: true }
       - { path: /etc/postfix/conf, owner: root, group: postfix, recurse: true }
@@ -177,6 +175,11 @@
     - name: Reload systemd units
       systemd:
         daemon_reload: yes
+
+    # /etc/dovecot is not restored: rebuild it now that the Let's Encrypt
+    # certificates are back
+    - name: Configure Dovecot with the restored certificates
+      include_tasks: playbooks/tasks/dovecot-config.yml
 
     # ------------------------------------------------------------- test mode
     - name: "Test mode: remove root crontab (backup jobs would overwrite real archives)"
@@ -347,3 +350,9 @@
           - "Then run the check-web-services and check-mail-services skills."
           - "Manual steps: `claude` login, /root/.config/rclone/rclone.conf, CrowdSec bouncer check."
           - "{{ 'TEST MODE: no crontab, no FTP credentials, check-services timer off.' if restore_test_mode else 'Real restore: point DNS here, then run certbot renew --dry-run.' }}"
+
+  handlers:
+    - name: restart dovecot
+      service:
+        name: dovecot
+        state: restarted

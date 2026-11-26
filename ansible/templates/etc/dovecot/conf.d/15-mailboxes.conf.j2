@@ -1,0 +1,22 @@
+# Dovecot 2.4
+namespace inbox {
+  mailbox Drafts {
+    special_use = \Drafts
+  }
+  mailbox Junk {
+    auto = subscribe
+    autoexpunge = 30 days
+    special_use = \Junk
+  }
+  mailbox Trash {
+    auto = subscribe
+    autoexpunge = 30 days
+    special_use = \Trash
+  }
+  mailbox Sent {
+    special_use = \Sent
+  }
+  mailbox "Sent Messages" {
+    special_use = \Sent
+  }
+}

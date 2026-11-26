@@ -1,0 +1,39 @@
+# Dovecot 2.4 / Pigeonhole: personal scripts, spam-to-Junk after every
+# delivery, RSpamD learning when a message is moved into or out of Junk
+sieve_script personal {
+  driver = file
+  path = ~/sieve
+  active_path = ~/.dovecot.sieve
+}
+
+sieve_script spam-to-folder {
+  type = after
+  path = /etc/dovecot/sieve-after
+}
+
+sieve_plugins {
+  sieve_imapsieve = yes
+  sieve_extprograms = yes
+}
+
+sieve_global_extensions {
+  vnd.dovecot.pipe = yes
+}
+
+sieve_pipe_bin_dir = /etc/dovecot/sieve
+
+mailbox Junk {
+  sieve_script learn-spam {
+    type = before
+    cause = copy
+    path = /etc/dovecot/sieve/learn-spam.sieve
+  }
+}
+
+imapsieve_from Junk {
+  sieve_script learn-ham {
+    type = before
+    cause = copy
+    path = /etc/dovecot/sieve/learn-ham.sieve
+  }
+}

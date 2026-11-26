@@ -1,3 +1,6 @@
+# Dovecot 2.4
 protocol lmtp {
-  mail_plugins = $mail_plugins sieve
+  mail_plugins {
+    sieve = yes
+  }
 }

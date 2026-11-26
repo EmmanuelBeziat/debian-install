@@ -171,6 +171,7 @@ ansible/
 
 - **Ne modifiez PAS le README.md principal**
 - Les playbooks suivent le serveur réellement en production, et divergent donc du README principal sur ces points : Fail2ban (remplacé par CrowdSec), Netdata, Monit et OpenVPN ne sont plus installés (playbooks 15, 17, 19 et 20 supprimés, numérotation conservée)
+- Les playbooks ciblent **Debian 13**, donc **Dovecot 2.4**, dont la configuration est incompatible avec la 2.3 du README principal (Debian 12) : toute la configuration Dovecot est générée par `playbooks/tasks/dovecot-config.yml`, et `restore.yml` ne restaure pas `/etc/dovecot` mais la regénère. Tant que le certificat Let's Encrypt d'un domaine n'existe pas, Dovecot utilise le certificat snakeoil : relancer `11-mail-server.yml` après Certbot
 - Les fichiers sensibles (mots de passe) sont dans `group_vars/all/vault.yml` qui est exclu de Git
 - Après l'exécution, pensez à :
   1. Configurer vos DNS (MX, SPF, DKIM, DMARC)

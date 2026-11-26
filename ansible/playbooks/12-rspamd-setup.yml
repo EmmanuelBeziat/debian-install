@@ -40,35 +40,6 @@
         mode: '0644'
       notify: restart rspamd
 
-    - name: Configure Dovecot sieve for spam
-      copy:
-        dest: /etc/dovecot/conf.d/90-sieve.conf
-        content: |
-          sieve_after = /etc/dovecot/sieve-after
-
-          imapsieve_mailbox1_name = Junk
-          imapsieve_mailbox1_causes = COPY
-          imapsieve_mailbox1_before = file:/etc/dovecot/sieve/learn-spam.sieve
-
-          imapsieve_mailbox2_name = *
-          imapsieve_mailbox2_from = Junk
-          imapsieve_mailbox2_causes = COPY
-          imapsieve_mailbox2_before = file:/etc/dovecot/sieve/learn-ham.sieve
-
-          sieve_pipe_bin_dir = /etc/dovecot/sieve
-          sieve_global_extensions = +vnd.dovecot.pipe
-          sieve_plugins = sieve_imapsieve sieve_extprograms
-        mode: '0644'
-      notify: restart dovecot
-
-    - name: Configure Dovecot 20-imap
-      copy:
-        dest: /etc/dovecot/conf.d/20-imap.conf
-        content: |
-          mail_plugins = $mail_plugins quota imap_sieve
-        mode: '0644'
-      notify: restart dovecot
-
     - name: Create sieve-after directory
       file:
         path: /etc/dovecot/sieve-after
@@ -140,23 +111,6 @@
         owner: vmail
         group: vmail
         mode: '0700'
-
-    - name: Configure Dovecot 15-mailboxes
-      copy:
-        dest: /etc/dovecot/conf.d/15-mailboxes.conf
-        content: |
-          mailbox Junk {
-            special_use = \Junk
-            auto = subscribe
-            autoexpunge = 30d
-          }
-          mailbox Trash {
-            special_use = \Trash
-            auto = subscribe
-            autoexpunge = 30d
-          }
-        mode: '0644'
-      notify: restart dovecot
 
     - name: Ensure Redis is enabled and started
       systemd:

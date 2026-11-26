@@ -22,6 +22,7 @@
           - dovecot-imapd
           - dovecot-managesieved
           - dovecot-lmtpd
+          - ssl-cert
         state: present
 
     - name: Create mail database
@@ -161,49 +162,8 @@
         group: vmail
         recurse: yes
 
-    - name: Configure Dovecot 10-auth.conf
-      template:
-        src: ../templates/etc/dovecot/conf.d/10-auth.conf.j2
-        dest: /etc/dovecot/conf.d/10-auth.conf
-        mode: '0644'
-      notify: restart dovecot
-
-    - name: Configure Dovecot 10-mail.conf
-      template:
-        src: ../templates/etc/dovecot/conf.d/10-mail.conf.j2
-        dest: /etc/dovecot/conf.d/10-mail.conf
-        mode: '0644'
-      notify: restart dovecot
-
-    - name: Configure Dovecot 10-master.conf
-      template:
-        src: ../templates/etc/dovecot/conf.d/10-master.conf.j2
-        dest: /etc/dovecot/conf.d/10-master.conf
-        mode: '0644'
-      notify: restart dovecot
-
-    - name: Configure Dovecot 10-ssl.conf
-      template:
-        src: ../templates/etc/dovecot/conf.d/10-ssl.conf.j2
-        dest: /etc/dovecot/conf.d/10-ssl.conf
-        mode: '0644'
-      notify: restart dovecot
-
-    - name: Configure Dovecot 20-lmtp.conf
-      template:
-        src: ../templates/etc/dovecot/conf.d/20-lmtp.conf.j2
-        dest: /etc/dovecot/conf.d/20-lmtp.conf
-        mode: '0644'
-      notify: restart dovecot
-
-    - name: Configure Dovecot SQL
-      template:
-        src: ../templates/etc/dovecot/dovecot-sql.conf.ext.j2
-        dest: /etc/dovecot/dovecot-sql.conf.ext
-        owner: root
-        group: root
-        mode: '0600'
-      notify: restart dovecot
+    - name: Configure Dovecot
+      include_tasks: tasks/dovecot-config.yml
 
     - name: Create Certbot renewal hooks directory (Certbot creates it only on first run)
       file:

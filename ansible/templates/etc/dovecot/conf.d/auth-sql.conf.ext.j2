@@ -1,0 +1,20 @@
+# Dovecot 2.4: virtual users from the MariaDB mailserver database. Hashes
+# carry their scheme prefix ({BLF-CRYPT}...), as doveadm pw outputs them.
+sql_driver = mysql
+
+mysql 127.0.0.1 {
+  user = {{ mail_db_user }}
+  password = {{ mail_db_password }}
+  dbname = mailserver
+}
+
+passdb sql {
+  query = SELECT password FROM virtual_users WHERE email = '%{user}'
+}
+
+userdb sql {
+  query = SELECT email AS user, '{{ vmail_home }}/%{user | domain}/%{user | username}' AS home, \
+    {{ vmail_user_id }} AS uid, {{ vmail_group_id }} AS gid \
+    FROM virtual_users WHERE email = '%{user}'
+  iterate_query = SELECT email AS user FROM virtual_users
+}
