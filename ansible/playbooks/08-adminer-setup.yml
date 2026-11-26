@@ -24,7 +24,7 @@
 
     - name: Download Adminer Dracula theme
       get_url:
-        url: "https://raw.githubusercontent.com/vrana/adminer/master/designs/dracula/adminer.css"
+        url: "https://raw.githubusercontent.com/vrana/adminer/master/designs/dracula/adminer-dark.css"
         dest: "{{ adminer_path }}/adminer.css"
         owner: www-data
         group: www-data
