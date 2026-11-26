@@ -205,6 +205,12 @@
         mode: '0600'
       notify: restart dovecot
 
+    - name: Create Certbot renewal hooks directory (Certbot creates it only on first run)
+      file:
+        path: /etc/letsencrypt/renewal-hooks/post
+        state: directory
+        mode: '0755'
+
     - name: Configure certificate renewal hook for mail services
       template:
         src: ../templates/etc/letsencrypt/renewal-hooks/post/restart-mail.sh.j2
