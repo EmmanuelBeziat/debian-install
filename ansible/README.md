@@ -47,15 +47,17 @@ ftp_password: "MOT_DE_PASSE_FTP"
 
 ### 3. Configuration de l'inventaire
 
-Éditez `inventory/hosts.ini` :
+`inventory/hosts.ini` lit `server_ip` et `ssh_port` dans `group_vars/all.yml`, il n'y a rien à modifier :
 
 ```ini
 [servers]
-debian-server ansible_host=YOUR_SERVER_IP ansible_user=root
+debian-server ansible_host="{{ server_ip }}" ansible_port="{{ ssh_port }}" ansible_user=root
 
 [servers:vars]
 ansible_python_interpreter=/usr/bin/python3
 ```
+
+Pour lancer Ansible directement sur le serveur à installer (pas de poste de contrôle, par exemple en reprise après sinistre quand l'ancien serveur n'existe plus) : installer `ansible-core` et `git` sur le serveur, cloner ce dépôt, et utiliser `inventory/local.ini` à la place de `inventory/hosts.ini` dans toutes les commandes.
 
 ## Utilisation
 
