@@ -98,11 +98,14 @@
         that: "'conf-files' in restore_archives | default({})"
         fail_msg: "No *_conf-files.zip found in {{ restore_archives_dir }}"
 
+    # 0755, not 0700: rsync --relative copies the attributes of conf-files
+    # itself onto /, and a 0700 / stops every non-root service. /root (0700)
+    # already keeps these folders private.
     - name: Create restore folders
       file:
         path: "{{ restore_dir }}/{{ item.key }}"
         state: directory
-        mode: '0700'
+        mode: '0755'
       loop: "{{ restore_archives | dict2items }}"
 
     - name: Upload and extract archives
