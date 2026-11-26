@@ -32,15 +32,15 @@
         enabled: yes
         state: started
 
-    - name: Set MariaDB root password
-      mysql_user:
-        user: root
-        host: localhost
-        password: "{{ mariadb_root_password }}"
-        login_user: root
-        login_password: ""
-        state: present
-      ignore_errors: yes
+    # Fresh installs only allow root through unix_socket. Keep it and add the
+    # password, as on the live server (mysql_user would drop unix_socket).
+    - name: Set MariaDB root password, keeping unix_socket login
+      mysql_query:
+        login_unix_socket: /run/mysqld/mysqld.sock
+        query: "ALTER USER 'root'@'localhost' IDENTIFIED VIA unix_socket OR mysql_native_password USING PASSWORD(%s)"
+        positional_args:
+          - "{{ mariadb_root_password }}"
+      no_log: true
 
     - name: Remove anonymous users
       mysql_user:
