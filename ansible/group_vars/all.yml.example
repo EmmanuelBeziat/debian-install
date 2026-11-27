@@ -13,7 +13,9 @@ nginx_default_port: 80
 nginx_https_port: 443
 
 php_version: "8.6"
-node_default_version: "node"
+# A major version, not "node": nodejs.org now lists alpha builds first and
+# nvm installs them as the latest release. The live server runs Node 26.
+node_default_version: "26"
 
 mariadb_version: "12.2"
 mariadb_admin_user: "admin"
