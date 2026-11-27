@@ -6,7 +6,7 @@ Automatisation complète de l'installation d'un serveur Debian avec Ansible, bas
 
 - Ansible 2.9+
 - Accès SSH root au serveur Debian
-- Une clé SSH publique renseignée dans `ssh_authorized_keys` (`group_vars/all.yml`) : `02-ssh-setup.yml` la dépose avant de couper la connexion par mot de passe, et refuse de tourner sans elle
+- Une clé SSH publique renseignée dans `ssh_authorized_keys` (`group_vars/all/vars.yml`) : `02-ssh-setup.yml` la dépose avant de couper la connexion par mot de passe, et refuse de tourner sans elle
 - Sur un serveur neuf qui n'accepte que le mot de passe : `ssh-copy-id root@IP` avant le premier lancement. Le port (22 sur un serveur neuf, `ssh_port` ensuite) est détecté automatiquement
 
 ## Installation
@@ -17,13 +17,14 @@ Copiez les fichiers d'exemple et modifiez-les avec vos propres valeurs :
 
 ```bash
 cd ansible
-cp group_vars/all.yml.example group_vars/all.yml
-cp group_vars/vault.yml.example group_vars/vault.yml
+mkdir -p group_vars/all
+cp group_vars/all.yml.example group_vars/all/vars.yml
+cp group_vars/vault.yml.example group_vars/all/vault.yml
 ```
 
 ### 2. Configuration des variables
 
-Éditez `group_vars/all.yml` avec vos paramètres :
+Éditez `group_vars/all/vars.yml` avec vos paramètres :
 
 ```yaml
 server_ip: "VOTRE_IP_SERVEUR"
@@ -34,7 +35,7 @@ admin_email: "admin@votre-domaine.com"
 crowdsec_whitelist_ip: "VOTRE_IP_ADMIN"
 ```
 
-Éditez `group_vars/vault.yml` avec vos mots de passe :
+Éditez `group_vars/all/vault.yml` avec vos mots de passe :
 
 ```yaml
 mariadb_root_password: "MOT_DE_PASSE_ROOT"
@@ -47,15 +48,17 @@ ftp_password: "MOT_DE_PASSE_FTP"
 
 ### 3. Configuration de l'inventaire
 
-Éditez `inventory/hosts.ini` :
+`inventory/hosts.ini` lit `server_ip` et `ssh_port` dans `group_vars/all/vars.yml`, il n'y a rien à modifier :
 
 ```ini
 [servers]
-debian-server ansible_host=YOUR_SERVER_IP ansible_user=root
+debian-server ansible_host="{{ server_ip }}" ansible_port="{{ ssh_port }}" ansible_user=root
 
 [servers:vars]
 ansible_python_interpreter=/usr/bin/python3
 ```
+
+Pour lancer Ansible directement sur le serveur à installer (pas de poste de contrôle, par exemple en reprise après sinistre quand l'ancien serveur n'existe plus) : installer `ansible-core` et `git` sur le serveur, cloner ce dépôt, et utiliser `inventory/local.ini` à la place de `inventory/hosts.ini` dans toutes les commandes.
 
 ## Utilisation
 
@@ -120,7 +123,7 @@ ansible-playbook -i inventory/hosts.ini restore.yml -e restore_archives_dir=/che
 ansible-playbook -i inventory/hosts.ini restore.yml -e restore_archives_dir=/chemin/vers/archives -e restore_test_mode=false
 ```
 
-Pour un test, mettez aussi des **identifiants FTP factices** dans `group_vars/vault.yml` : `site.yml` installe les tâches cron de sauvegarde avant que `restore.yml` ne les retire.
+Pour un test, mettez aussi des **identifiants FTP factices** dans `group_vars/all/vault.yml` : `site.yml` installe les tâches cron de sauvegarde avant que `restore.yml` ne les retire.
 
 Restent à faire à la main : `claude` (connexion), `/root/.config/rclone/rclone.conf` (jeton Google et mots de passe de chiffrement, jamais sauvegardés), puis faire pointer les DNS et lancer `certbot renew --dry-run` pour une vraie reprise.
 
@@ -129,10 +132,13 @@ Restent à faire à la main : `claude` (connexion), `/root/.config/rclone/rclone
 ```
 ansible/
 ├── inventory/
-│   └── hosts.ini              # Inventaire des serveurs
+│   ├── hosts.ini              # Inventaire (Ansible lancé depuis un poste de contrôle)
+│   ├── local.ini              # Inventaire (Ansible lancé sur le serveur lui-même)
+│   └── group_vars -> ../group_vars
 ├── group_vars/
-│   ├── all.yml                # Variables globales
-│   ├── vault.yml              # Variables sensibles (mots de passe)
+│   ├── all/
+│   │   ├── vars.yml           # Variables globales
+│   │   └── vault.yml          # Variables sensibles (mots de passe)
 │   └── dkim.yml               # Configuration DKIM
 ├── playbooks/
 │   ├── 01-system-setup.yml    # Configuration système de base
@@ -165,7 +171,8 @@ ansible/
 
 - **Ne modifiez PAS le README.md principal**
 - Les playbooks suivent le serveur réellement en production, et divergent donc du README principal sur ces points : Fail2ban (remplacé par CrowdSec), Netdata, Monit et OpenVPN ne sont plus installés (playbooks 15, 17, 19 et 20 supprimés, numérotation conservée)
-- Les fichiers sensibles (mots de passe) sont dans `group_vars/vault.yml` qui est exclu de Git
+- Les playbooks ciblent **Debian 13**, donc **Dovecot 2.4**, dont la configuration est incompatible avec la 2.3 du README principal (Debian 12) : toute la configuration Dovecot est générée par `playbooks/tasks/dovecot-config.yml`, et `restore.yml` ne restaure pas `/etc/dovecot` mais la regénère. Tant que le certificat Let's Encrypt d'un domaine n'existe pas, Dovecot utilise le certificat snakeoil : relancer `11-mail-server.yml` après Certbot
+- Les fichiers sensibles (mots de passe) sont dans `group_vars/all/vault.yml` qui est exclu de Git
 - Après l'exécution, pensez à :
   1. Configurer vos DNS (MX, SPF, DKIM, DMARC)
   2. Générer vos certificats SSL avec Certbot

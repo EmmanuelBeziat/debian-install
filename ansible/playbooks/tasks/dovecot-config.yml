@@ -1,0 +1,57 @@
+# Dovecot 2.4 configuration (Debian 13). Used by 11-mail-server.yml and by
+# restore.yml, which re-runs it once the Let's Encrypt certificates are back.
+# The caller must define a "restart dovecot" handler.
+
+- name: Look for the Let's Encrypt certificate of each mail domain
+  stat:
+    path: "/etc/letsencrypt/live/{{ item }}/fullchain.pem"
+  loop: "{{ [mail_domain] + (dkim_domains | map(attribute='domain') | reject('equalto', mail_domain) | list) }}"
+  register: dovecot_le_certs
+
+- name: Pick each domain's certificate (snakeoil until Let's Encrypt has one)
+  set_fact:
+    dovecot_certs: "{{ dovecot_certs | default({}) | combine({item.item: (
+      {'cert': '/etc/letsencrypt/live/' ~ item.item ~ '/fullchain.pem',
+       'key': '/etc/letsencrypt/live/' ~ item.item ~ '/privkey.pem'}
+      if item.stat.exists else
+      {'cert': '/etc/ssl/certs/ssl-cert-snakeoil.pem',
+       'key': '/etc/ssl/private/ssl-cert-snakeoil.key'}) }) }}"
+  loop: "{{ dovecot_le_certs.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Configure Dovecot
+  template:
+    src: "../../templates/etc/dovecot/conf.d/{{ item }}.j2"
+    dest: "/etc/dovecot/conf.d/{{ item }}"
+    owner: root
+    group: root
+    mode: '0644'
+  loop:
+    - 10-auth.conf
+    - 10-mail.conf
+    - 10-master.conf
+    - 10-ssl.conf
+    - 15-mailboxes.conf
+    - 20-imap.conf
+    - 20-lmtp.conf
+    - 90-sieve.conf
+  notify: restart dovecot
+
+- name: Configure Dovecot SQL users
+  template:
+    src: ../../templates/etc/dovecot/conf.d/auth-sql.conf.ext.j2
+    dest: /etc/dovecot/conf.d/auth-sql.conf.ext
+    owner: root
+    group: dovecot
+    mode: '0640'
+  notify: restart dovecot
+
+- name: Remove the Dovecot 2.3 SQL file
+  file:
+    path: /etc/dovecot/dovecot-sql.conf.ext
+    state: absent
+
+- name: Check the Dovecot configuration
+  command: doveconf -n
+  changed_when: false

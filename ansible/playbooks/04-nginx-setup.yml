@@ -6,13 +6,14 @@
     - name: Install Nginx from official repository
       block:
         - name: Add Nginx signing key
-          apt_key:
+          get_url:
             url: https://nginx.org/keys/nginx_signing.key
-            state: present
+            dest: /usr/share/keyrings/nginx.asc
+            mode: '0644'
 
         - name: Add Nginx repository
           apt_repository:
-            repo: "deb https://nginx.org/packages/mainline/debian/ {{ ansible_distribution_release }} nginx"
+            repo: "deb [signed-by=/usr/share/keyrings/nginx.asc] https://nginx.org/packages/mainline/debian/ {{ ansible_distribution_release }} nginx"
             state: present
             filename: nginx
 
@@ -35,6 +36,7 @@
         - /etc/nginx/snippets
         - /etc/nginx/sites-available
         - /etc/nginx/sites-enabled
+        - /var/lib/nginx
 
     - name: Configure Nginx main config
       template:

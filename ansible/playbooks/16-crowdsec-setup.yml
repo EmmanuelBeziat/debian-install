@@ -2,12 +2,23 @@
   hosts: servers
   become: yes
 
+  vars:
+    # packagecloud has no trixie dist yet (404): its bookworm packages are
+    # static Go binaries and run on Debian 13. Debian's own crowdsec is 1.4.
+    crowdsec_repo_release: "{{ 'bookworm' if ansible_distribution_release == 'trixie' else ansible_distribution_release }}"
+
   tasks:
+    - name: Add CrowdSec repository key
+      get_url:
+        url: https://packagecloud.io/crowdsec/crowdsec/gpgkey
+        dest: /etc/apt/keyrings/crowdsec_crowdsec-archive-keyring.asc
+        mode: '0644'
+
     - name: Add CrowdSec repository
-      shell: |
-        curl -sL https://packagecloud.io/install/repositories/crowdsec/crowdsec/script.deb.sh | bash
-      args:
-        creates: /etc/apt/sources.list.d/crowdsec_crowdsec.list
+      apt_repository:
+        repo: "deb [signed-by=/etc/apt/keyrings/crowdsec_crowdsec-archive-keyring.asc] https://packagecloud.io/crowdsec/crowdsec/debian/ {{ crowdsec_repo_release }} main"
+        state: present
+        filename: crowdsec_crowdsec
 
     - name: Install CrowdSec
       apt:

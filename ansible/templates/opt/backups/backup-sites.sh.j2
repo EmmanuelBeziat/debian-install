@@ -44,11 +44,12 @@ done > "$TMP_DIR/wordpress.tsv"
 # Change to the temporary directory to ensure zip archives contents directly
 cd "$TMP_DIR" || exit
 
-# Replace any archive from an earlier run today (zip -r would merge into it)
+# Replace any archive from an earlier run today (zip -r would merge into it).
+# -y stores symlinks as symlinks (sites-enabled, *.wants...), not as copies
 rm -f "$ARCHIVE_NAME"
 
 # Create the archive
-zip -rq "$ARCHIVE_NAME" ./*
+zip -rqy "$ARCHIVE_NAME" ./*
 
 # Check if the archive was created successfully
 if [ -f "$ARCHIVE_NAME" ]; then

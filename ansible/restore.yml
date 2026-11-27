@@ -30,9 +30,11 @@
       - /etc/crowdsec/local_api_credentials.yaml   # registered in the old LAPI database
       - /etc/crowdsec/online_api_credentials.yaml
       - /etc/crowdsec/bouncers/
+      - /etc/dovecot/                       # 2.3 syntax, rebuilt for 2.4 by tasks/dovecot-config.yml
     restore_config_excludes_test:
       - /etc/hosts
       - /etc/ssh/
+      - /root/.ssh/authorized_keys          # keep the keys that reach the test server
       - /var/spool/cron/
       - /etc/cron.d/
       - /root/.ftp_credentials
@@ -46,9 +48,6 @@
       - { path: /etc/redis, owner: redis, group: redis, recurse: true }
       - { path: /etc/redis/redis.conf, owner: root, group: redis }
       - { path: /etc/rspamd/override.d, owner: root, group: _rspamd, recurse: true }
-      - { path: /etc/dovecot/dovecot-sql.conf.ext, owner: root, group: dovecot }
-      - { path: /etc/dovecot/dovecot-dict-auth.conf.ext, owner: root, group: dovecot }
-      - { path: /etc/dovecot/dovecot-dict-sql.conf.ext, owner: root, group: dovecot }
       - { path: /etc/dovecot/private, owner: root, group: ssl-cert, recurse: true }
       - { path: /etc/dovecot/sieve, owner: vmail, group: vmail, recurse: true }
       - { path: /etc/postfix/conf, owner: root, group: postfix, recurse: true }
@@ -99,11 +98,14 @@
         that: "'conf-files' in restore_archives | default({})"
         fail_msg: "No *_conf-files.zip found in {{ restore_archives_dir }}"
 
+    # 0755, not 0700: rsync --relative copies the attributes of conf-files
+    # itself onto /, and a 0700 / stops every non-root service. /root (0700)
+    # already keeps these folders private.
     - name: Create restore folders
       file:
         path: "{{ restore_dir }}/{{ item.key }}"
         state: directory
-        mode: '0700'
+        mode: '0755'
       loop: "{{ restore_archives | dict2items }}"
 
     - name: Upload and extract archives
@@ -177,6 +179,19 @@
     - name: Reload systemd units
       systemd:
         daemon_reload: yes
+
+    # /etc/ufw comes from the old server: its SSH rule is for the old port
+    - name: Keep SSH reachable through the restored firewall rules
+      ufw:
+        rule: allow
+        port: "{{ ssh_port }}"
+        proto: tcp
+        comment: SSH
+
+    # /etc/dovecot is not restored: rebuild it now that the Let's Encrypt
+    # certificates are back
+    - name: Configure Dovecot with the restored certificates
+      include_tasks: playbooks/tasks/dovecot-config.yml
 
     # ------------------------------------------------------------- test mode
     - name: "Test mode: remove root crontab (backup jobs would overwrite real archives)"
@@ -300,7 +315,24 @@
       register: git_restore
       changed_when: "'ok ' in git_restore.stdout"
 
-    # The webhook deploy scripts install dependencies and build (npm ci…)
+    # The deploy scripts only run npm ci when package-lock.json changed, which
+    # never happens on a fresh clone: install the dependencies first
+    - name: Install npm dependencies of the re-cloned checkouts
+      shell: |
+        . /root/.nvm/nvm.sh
+        list={{ restore_dir }}/conf-files/packages/git-repos.tsv
+        [ -f "$list" ] || exit 0
+        while IFS=$'\t' read -r path origin commit; do
+          [ -f "$path/package-lock.json" ] && [ ! -d "$path/node_modules" ] || continue
+          (cd "$path" && npm ci --no-audit --no-fund </dev/null >/dev/null 2>&1) \
+            && echo "ok $path" || echo "FAILED npm ci $path"
+        done < "$list"
+      args:
+        executable: /bin/bash
+      register: npm_restore
+      changed_when: "'ok ' in npm_restore.stdout"
+
+    # The webhook deploy scripts build, test and reload the apps
     - name: Run the webhook deploy scripts
       shell: |
         for script in /usr/share/hooks/*/deploy.sh; do
@@ -342,8 +374,15 @@
           - "Databases: {{ db_restore.stdout_lines | default(['skipped']) }}"
           - "WordPress core: {{ wordpress_restore.stdout_lines | default(['skipped']) }}"
           - "Git: {{ git_restore.stdout_lines | default([]) }}"
+          - "npm: {{ npm_restore.stdout_lines | default([]) }}"
           - "Deploy hooks: {{ hooks_restore.stdout_lines | default(['skipped']) }}"
           - "Services: {{ services_state.stdout_lines }}"
           - "Then run the check-web-services and check-mail-services skills."
           - "Manual steps: `claude` login, /root/.config/rclone/rclone.conf, CrowdSec bouncer check."
           - "{{ 'TEST MODE: no crontab, no FTP credentials, check-services timer off.' if restore_test_mode else 'Real restore: point DNS here, then run certbot renew --dry-run.' }}"
+
+  handlers:
+    - name: restart dovecot
+      service:
+        name: dovecot
+        state: restarted

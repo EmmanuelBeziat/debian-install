@@ -1,5 +1,4 @@
-disable_plaintext_auth = no
+# Dovecot 2.4. Cleartext logins are fine: ssl = required (10-ssl.conf)
 auth_mechanisms = plain login
 
-#!include auth-system.conf.ext
 !include auth-sql.conf.ext

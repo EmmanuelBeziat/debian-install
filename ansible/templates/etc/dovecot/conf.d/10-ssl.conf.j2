@@ -1,4 +1,13 @@
+# Dovecot 2.4. Falls back to the snakeoil certificate until Certbot (or a
+# restore) provides the Let's Encrypt one; re-run the playbook afterwards.
 ssl = required
+ssl_min_protocol = TLSv1.2
+ssl_server_cert_file = {{ dovecot_certs[mail_domain].cert }}
+ssl_server_key_file = {{ dovecot_certs[mail_domain].key }}
+{% for domain in dovecot_certs if domain != mail_domain %}
 
-ssl_cert = </etc/letsencrypt/live/{{ mail_domain }}/fullchain.pem
-ssl_key = </etc/letsencrypt/live/{{ mail_domain }}/privkey.pem
+local_name {{ domain }} {
+  ssl_server_cert_file = {{ dovecot_certs[domain].cert }}
+  ssl_server_key_file = {{ dovecot_certs[domain].key }}
+}
+{% endfor %}

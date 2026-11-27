@@ -62,6 +62,13 @@
         - security
       notify: restart apache
 
+    # The live server runs mpm_prefork; only one MPM can be loaded
+    - name: Disable Apache mpm_event
+      command: a2dismod -q mpm_event
+      register: mpm_event_off
+      changed_when: "'already disabled' not in mpm_event_off.stdout"
+      notify: restart apache
+
     - name: Enable Apache modules
       command: "a2enmod {{ item }}"
       loop:
@@ -72,9 +79,8 @@
         - deflate
         - env
         - headers
-        - mpm_event
+        - mpm_prefork
         - actions
-        - fastcgi
         - proxy_fcgi
         - setenvif
       notify: restart apache

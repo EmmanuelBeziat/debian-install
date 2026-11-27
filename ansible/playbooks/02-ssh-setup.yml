@@ -8,7 +8,7 @@
     - name: Refuse to disable password login without a public key to deploy
       assert:
         that: ssh_authorized_keys | default([]) | length > 0
-        fail_msg: "Set ssh_authorized_keys in group_vars/all.yml, or this playbook locks you out."
+        fail_msg: "Set ssh_authorized_keys in group_vars/all/vars.yml, or this playbook locks you out."
 
     - name: Authorize the admin public keys for root
       authorized_key:
