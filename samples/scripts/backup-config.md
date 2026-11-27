@@ -9,47 +9,65 @@ DATE=$(date +'%Y.%m.%d')
 ARCHIVE_NAME="/var/backups/server/${DATE}_conf-files.zip"
 
 # Load FTP credentials
-FTP_HOST=$(grep 'host=' /root/.ftp_credentials | cut -d '=' -f2 | xargs)
-FTP_USER=$(grep 'user=' /root/.ftp_credentials | cut -d '=' -f2 | xargs)
-FTP_PASS=$(grep 'password=' /root/.ftp_credentials | cut -d '=' -f2 | xargs)
-
-echo "FTP_HOST: $FTP_HOST"
-echo "FTP_USER: $FTP_USER"
-echo "FTP_PASS: $FTP_PASS"
+FTP_HOST=$(grep '^host=' /root/.ftp_credentials | cut -d '=' -f2- | tr -d '\r' | xargs)
+FTP_USER=$(grep '^user=' /root/.ftp_credentials | cut -d '=' -f2- | tr -d '\r' | xargs)
+FTP_PASS=$(grep '^password=' /root/.ftp_credentials | cut -d '=' -f2- | tr -d '\r' | xargs)
 
 # List of configuration files and directories to back up
 CONFIG_FILES=(
-    "/etc/apache2/main.cf"
-    "/etc/apache2/ports.conf"
-    "/etc/apache2/conf-available/"
-    "/etc/apache2/conf-custom/"
-    "/etc/apache2/sites-available/"
-    "/etc/dovecot/"
-    "/etc/nginx/nginx.conf"
-    "/etc/nginx/snippets/"
-    "/etc/nginx/conf.d/"
-    "/etc/nginx/sites-available/"
+    # Web
+    "/etc/apache2/"
+    "/etc/nginx/"
+    "/etc/php/"
     "/etc/letsencrypt/"
-    "/etc/postfix/main.cf"
-    "/etc/postfix/master.cf"
-    "/etc/postfix/sni_maps"
-    "/etc/postfix/conf/"
-    "/etc/redis/"
-    "/etc/rspamd/local.d/"
-    "/etc/rspamd/override.d/"
-    "/etc/rspamd/dkim_selectors.map"
-    "/etc/sshd/sshd_config"
-    "/etc/rspamd/"
-    "/etc/ufw/applications.d/"
-    "/etc/hosts"
     "/usr/share/hooks/"
+    "/root/.pm2/dump.pm2"
+    # Database
+    "/etc/mysql/"
+    # Mail (DKIM private keys are required to keep existing DNS records valid)
+    "/etc/postfix/"
+    "/etc/dovecot/"
+    "/etc/rspamd/"
+    "/etc/opendkim/"
+    "/var/lib/rspamd/dkim/"
+    "/etc/redis/"
+    # DNS
+    "/etc/bind/"
+    # Security
+    "/etc/ssh/"
+    "/etc/ufw/"
+    "/etc/crowdsec/"
+    "/etc/sysctl.d/"
+    # System, services, scheduling
+    "/etc/hosts"
+    "/etc/systemd/system/"
+    "/etc/systemd/journald.conf"
+    "/etc/apt/sources.list.d/"
+    "/etc/logrotate.d/"
+    "/etc/cron.d/"
+    "/var/spool/cron/crontabs/"
+    "/usr/local/bin/"
     "/opt/"
+    # Root and user credentials
     "/root/.ssh/"
     "/root/.ftp_credentials"
     "/root/.gitconfig"
     "/root/.my.cnf"
-    "/var/lib/rspamd/dkim/"
+    # Claude Code: user config + server docs/skills/install repos (incl. local
+    # git hooks). Deliberately NOT .credentials.json (OAuth token, re-login
+    # instead) nor session transcripts (may contain secrets shown in sessions).
+    "/root/.claude/CLAUDE.md"
+    "/root/.claude/settings.json"
+    "/root/.claude/.i-have-adhd-always"
+    "/root/.claude/plugins/installed_plugins.json"
+    "/root/.claude/plugins/known_marketplaces.json"
+    "/root/server-doc/"
 )
+shopt -s nullglob
+CONFIG_FILES+=(/home/*/.ssh/ /root/.claude/projects/*/memory/)
+# App secrets (.env) of git-deployed sites: the code comes back from git, these don't
+CONFIG_FILES+=(/var/www/*/*/.env /var/www/*/*/*/.env)
+shopt -u nullglob
 
 # Maximum file size parameter (e.g., 1024m for 1024 MB); leave empty for no limit
 MAX_SIZE="${1:-}"
@@ -66,14 +84,43 @@ for CONFIG_FILE in "${CONFIG_FILES[@]}"; do
     rsync "${RSYNC_OPTS[@]}" "$CONFIG_FILE" "$TMP_DIR"
 done
 
+# Package inventory, to reinstall the same set on a fresh server
+mkdir -p "$TMP_DIR/packages"
+dpkg --get-selections > "$TMP_DIR/packages/dpkg-selections.txt"
+apt-mark showmanual > "$TMP_DIR/packages/apt-manual.txt"
+snap list > "$TMP_DIR/packages/snap-list.txt" 2>/dev/null
+
+# Git checkouts under /var/www (path, origin, commit): their code is not in
+# any backup, the restore re-clones them from this list
+find /var/www -maxdepth 8 -type d -name .git -prune | sort | while read -r gitdir; do
+    repo="${gitdir%/.git}"
+    origin=$(git -c safe.directory='*' -C "$repo" remote get-url origin 2>/dev/null) || continue
+    printf '%s\t%s\t%s\n' "$repo" "$origin" "$(git -c safe.directory='*' -C "$repo" rev-parse HEAD)"
+done > "$TMP_DIR/packages/git-repos.tsv"
+
 # Change to the temporary directory to ensure zip archives contents directly
 cd "$TMP_DIR" || exit
 
-# Create the archive from the contents of TMP_DIR
-zip -r "$ARCHIVE_NAME" ./*  || { echo "Failed to create zip archive"; exit 1; }
+# Replace any archive from an earlier run today (zip -r would merge into it).
+# -y stores symlinks as symlinks (sites-enabled, *.wants...), not as copies
+rm -f "$ARCHIVE_NAME"
 
-# Send the archive to the FTP server
-lftp -e "put \"$ARCHIVE_NAME\"; bye" -u "$FTP_USER","$FTP_PASS" "$FTP_HOST"
+# Create the archive from the contents of TMP_DIR
+zip -ry "$ARCHIVE_NAME" ./*  || { echo "Failed to create zip archive"; exit 1; }
+
+# Send the archive to the FTP server, encrypted: Dedibackup is plain FTP.
+# The local zip stays in clear (backup-offsite.sh encrypts it with rclone crypt).
+# Password via env var, not argv, so it never shows up in `ps`
+PASSPHRASE_FILE=/root/.backup-passphrase
+if ! gpg --batch --yes --quiet --symmetric --cipher-algo AES256 \
+        --passphrase-file "$PASSPHRASE_FILE" -o "$ARCHIVE_NAME.gpg" "$ARCHIVE_NAME"; then
+    echo "ERROR: encryption of $ARCHIVE_NAME failed on $DATE (missing $PASSPHRASE_FILE?), not uploaded" >&2
+    FTP_FAILED=1
+elif ! LFTP_PASSWORD="$FTP_PASS" lftp -e "set net:max-retries 3; set net:timeout 30; put \"$ARCHIVE_NAME.gpg\"; bye" -u "$FTP_USER" --env-password "$FTP_HOST"; then
+    echo "ERROR: FTP upload of $ARCHIVE_NAME.gpg failed on $DATE" >&2
+    FTP_FAILED=1
+fi
+rm -f "$ARCHIVE_NAME.gpg"
 
 # Clean up
 rm -rf "$TMP_DIR"
@@ -81,4 +128,5 @@ rm -rf "$TMP_DIR"
 # Optionally, add logging
 echo "Backup of configuration files completed on $DATE"
 
+exit "${FTP_FAILED:-0}"
 ```
