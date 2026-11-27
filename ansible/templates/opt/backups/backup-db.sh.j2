@@ -32,7 +32,9 @@ mysql -e "SELECT User, Host FROM mysql.user" > "$TMP_DIR/mysql_users.txt"
 # `mysql --force < mysql_users_grants.sql` (--force skips accounts that
 # already exist on a fresh server, e.g. root). Not using
 # `mariadb-dump --system=users`: it fails on MariaDB 12.2 (collation bug).
-mysql -Bse "SELECT User, Host FROM mysql.user WHERE is_role='N'" |
+# No string literal in the WHERE: under cron the connection collation differs
+# and `is_role='N'` fails (ERROR 1267). Roles are the rows with an empty Host.
+mysql -Bse "SELECT User, Host FROM mysql.user WHERE LENGTH(Host) > 0" |
 while IFS=$'\t' read -r user host; do
     # </dev/null: otherwise this mysql eats the rest of the loop's user list
     mysql -Bse "SHOW CREATE USER '$user'@'$host'; SHOW GRANTS FOR '$user'@'$host'" </dev/null | sed 's/$/;/'

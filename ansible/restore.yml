@@ -242,7 +242,10 @@
       shell: |
         set -e
         f={{ restore_dir }}/mysql/mysql_users_grants.sql
-        [ -f "$f" ] || exit 0
+        if [ ! -s "$f" ]; then
+          echo "$f is missing or empty: the sites' database accounts were not backed up, create them by hand" >&2
+          exit 1
+        fi
         grep -vE "\`(root|mariadb\.sys|mysql)\`@" "$f" \
           | sed -E 's/^CREATE USER /CREATE OR REPLACE USER /' \
           | mysql --force
@@ -260,6 +263,17 @@
     # ---------------------------------------------------------------- sites
     # Paths are stored in full (rsync --relative): put them back as they were.
     # ownership.tsv / wordpress.tsv at the archive root are metadata.
+    # Archives made before backup-sites.sh switched to rsync --relative hold
+    # flat folders (barricade/, media/...) that would land at the root of /
+    - name: Check the site archive holds absolute paths
+      shell: |
+        cd {{ restore_dir }}/sites
+        ls -A | grep -vxE 'var|ownership\.tsv|wordpress\.tsv' || true
+      register: sites_layout
+      changed_when: false
+      failed_when: sites_layout.stdout | length > 0
+      when: "'sites' in restore_archives"
+
     - name: Restore site files
       shell: |
         set -e
@@ -300,7 +314,13 @@
       shell: |
         list={{ restore_dir }}/conf-files/packages/git-repos.tsv
         [ -f "$list" ] || exit 0
+        sites={{ restore_dir }}/sites/ownership.tsv
         while IFS=$'\t' read -r path origin commit; do
+          # A CI-built site comes back from the site archive: a leftover .git
+          # must not check its sources out over the build
+          if [ -f "$sites" ] && cut -f2 "$sites" | grep -qxF "$path"; then
+            echo "skip $path (restored from the site archive)"; continue
+          fi
           if [ ! -d "$path/.git" ]; then
             mkdir -p "$path"
             git clone --quiet "$origin" "$path.tmp" </dev/null \
