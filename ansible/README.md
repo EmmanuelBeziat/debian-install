@@ -110,7 +110,7 @@ ansible-playbook -i inventory/hosts.ini playbooks/16-crowdsec-setup.yml
 
 `restore.yml` remet un serveur dans l'état de la dernière sauvegarde, **après** un `site.yml` complet. Il dépose la config (`/etc`, `/opt`, crontab, clés SSH et DKIM…), les bases (comptes et droits compris), les boîtes mail et les fichiers des sites, puis reclone les dépôts git déployés, relance les scripts de déploiement du webhook et les applications PM2.
 
-1. Récupérez les archives (`*_conf-files.zip`, `*_mysql.zip`, `*_mails.zip`, `*_sites.zip`) depuis le FTP ou Google Drive dans un dossier de la machine qui lance Ansible. La plus récente de chaque type est utilisée.
+1. Récupérez les archives (`*_conf-files.zip`, `*_mysql.zip`, `*_mails.zip`, `*_sites.zip`) depuis le FTP ou Google Drive dans un dossier de la machine qui lance Ansible. La plus récente de chaque type est utilisée. Sur le FTP, elles sont chiffrées (`*.zip.gpg`, passphrase `backup_passphrase` du vault) : déchiffrez-les d'abord avec `for f in *.zip.gpg; do gpg -o "${f%.gpg}" -d "$f"; done`.
 2. Lancez :
 
 ```bash

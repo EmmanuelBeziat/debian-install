@@ -6,6 +6,8 @@ mariadb_admin_password: "CHANGE_ME_ADMIN_PASSWORD"
 ftp_host: "ftp.example.com"
 ftp_user: "backup_user"
 ftp_password: "CHANGE_ME_FTP_PASSWORD"
+# GPG passphrase of the FTP archives (*.zip.gpg) — also keep it in a password manager
+backup_passphrase: "CHANGE_ME_BACKUP_PASSPHRASE"
 
 git_user_name: "Your Name"
 git_user_email: "your@email.com"

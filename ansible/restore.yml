@@ -81,6 +81,25 @@
       loop: [conf-files, mysql, mails, sites]
       register: found_archives
 
+    # FTP archives are GPG-encrypted (*.zip.gpg); Drive copies are plain zips
+    - name: Find encrypted archives on the controller
+      delegate_to: localhost
+      become: no
+      run_once: yes
+      find:
+        paths: "{{ restore_archives_dir }}"
+        patterns: "*.zip.gpg"
+      register: encrypted_archives
+
+    - name: Encrypted archives must be decrypted first
+      assert:
+        that: >-
+          encrypted_archives.files | map(attribute='path') | map('regex_replace', '\.gpg$', '') | list
+          is subset(found_archives.results | map(attribute='files') | flatten | map(attribute='path') | list)
+        fail_msg: >-
+          Decrypt the FTP archives first (passphrase in the password manager), in {{ restore_archives_dir }}:
+          for f in *.zip.gpg; do gpg -o "${f%.gpg}" -d "$f"; done
+
     - name: Pick the latest archive per type
       set_fact:
         restore_archives: "{{ restore_archives | default({}) | combine({item.item: (item.files | map(attribute='path') | sort | last)}) }}"
