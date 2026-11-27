@@ -29,6 +29,12 @@
     mode: '0644'
   notify: restart dovecot
 
+- name: Remove the ManageSieve protocol stub of the package (sieve protocol stays off)
+  file:
+    path: /etc/dovecot/conf.d/20-managesieve.conf
+    state: absent
+  notify: restart dovecot
+
 - name: Configure Dovecot
   template:
     src: "../../templates/etc/dovecot/conf.d/{{ item }}.j2"

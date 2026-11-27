@@ -52,7 +52,6 @@
         name:
           - dovecot-core
           - dovecot-mysql
-          - dovecot-pop3d
           - dovecot-imapd
           - dovecot-managesieved
           - dovecot-lmtpd
