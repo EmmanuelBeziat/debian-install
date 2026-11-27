@@ -16,7 +16,7 @@
 
     - name: Generate DKIM key pair
       command: >
-        rspamadm dkim_keygen -d {{ item.domain }} -s {{ item.selector }}
+        rspamadm dkim_keygen -b 2048 -d {{ item.domain }} -s {{ item.selector }}
       loop: "{{ dkim_domains }}"
       register: dkim_keys
       changed_when: false
