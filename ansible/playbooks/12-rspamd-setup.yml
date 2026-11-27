@@ -3,12 +3,49 @@
   become: yes
 
   tasks:
+    # Upstream packages: Debian lags far behind (3.4 on 12, 3.12 on 13) and
+    # Rspamd does not support them
+    - name: Download the RSpamD repository key
+      get_url:
+        url: https://rspamd.com/apt-stable/gpg.key
+        dest: /usr/share/keyrings/rspamd.asc
+        mode: '0644'
+
+    - name: Read the RSpamD repository key fingerprint
+      command: gpg --show-keys --with-colons /usr/share/keyrings/rspamd.asc
+      register: rspamd_key
+      changed_when: false
+
+    # Not published on rspamd.com: the Rspamd packages key on keyserver.ubuntu.com since 2015
+    - name: Check it is the known RSpamD packages key
+      assert:
+        that: "'fpr:::::::::3FA347D5E599BE4595CA2576FFA232EDBF21E25E:' in rspamd_key.stdout"
+        fail_msg: "Unexpected key at rspamd.com/apt-stable: check it before trusting it"
+
+    - name: Add the RSpamD repository
+      copy:
+        dest: /etc/apt/sources.list.d/rspamd.sources
+        mode: '0644'
+        content: |
+          Types: deb
+          URIs: https://rspamd.com/apt-stable/
+          Suites: {{ ansible_distribution_release }}
+          Components: main
+          Signed-By: /usr/share/keyrings/rspamd.asc
+      register: rspamd_repo
+
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+      when: rspamd_repo.changed
+
     - name: Install RSpamD and Redis
       apt:
         name:
           - rspamd
           - redis
         state: present
+        install_recommends: no
 
     - name: Configure RSpamD milter headers
       template:
