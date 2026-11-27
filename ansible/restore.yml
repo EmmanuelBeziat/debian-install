@@ -311,7 +311,13 @@
       shell: |
         list={{ restore_dir }}/conf-files/packages/git-repos.tsv
         [ -f "$list" ] || exit 0
+        sites={{ restore_dir }}/sites/ownership.tsv
         while IFS=$'\t' read -r path origin commit; do
+          # A CI-built site comes back from the site archive: a leftover .git
+          # must not check its sources out over the build
+          if [ -f "$sites" ] && cut -f2 "$sites" | grep -qxF "$path"; then
+            echo "skip $path (restored from the site archive)"; continue
+          fi
           if [ ! -d "$path/.git" ]; then
             mkdir -p "$path"
             git clone --quiet "$origin" "$path.tmp" </dev/null \
