@@ -4,10 +4,12 @@
 DATE=$(date +'%Y.%m.%d')
 ARCHIVE_NAME="/var/backups/server/${DATE}_sites.zip"
 
-# Only content that exists nowhere else. Sites deployed from git or built by
-# CI are NOT listed: their code comes back from GitHub. The list is
-# backup_sites_paths in group_vars: add any new site with user content
-# (uploads, plugins installed from its admin...).
+# Only content that exists nowhere else on the server's side. Sites deployed
+# from git are NOT listed: their code comes back from GitHub. Sites whose
+# build is uploaded by CI ARE listed (small, and online again right after a
+# restore, without a CI redeploy). The list is backup_sites_paths in
+# group_vars: add any new site with user content (uploads, plugins installed
+# from its admin...) or any new CI-built site.
 SOURCE_PATHS=(
 {% for path in backup_sites_paths | default([]) %}
     "{{ path }}"
@@ -21,6 +23,7 @@ EXCLUDES=(
     "--exclude=node_modules/"
     "--exclude=.well-known/"
     "--exclude=*.log"
+    "--exclude=.git/"
 )
 
 # --relative keeps full paths in the archive: restore = unzip, then rsync to /
