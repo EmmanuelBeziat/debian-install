@@ -58,6 +58,16 @@
     - name: Fix FTP credentials encoding
       command: dos2unix /root/.ftp_credentials
 
+    # Archives are GPG-encrypted with it before going to the (plain) FTP
+    - name: Create backup encryption passphrase file
+      copy:
+        content: "{{ backup_passphrase }}\n"
+        dest: /root/.backup-passphrase
+        owner: root
+        group: root
+        mode: '0600'
+      no_log: true
+
     - name: Deploy backup scripts
       template:
         src: ../templates/opt/backups/{{ item }}.j2

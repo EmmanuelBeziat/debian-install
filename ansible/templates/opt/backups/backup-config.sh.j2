@@ -8,9 +8,9 @@ DATE=$(date +'%Y.%m.%d')
 ARCHIVE_NAME="/var/backups/server/${DATE}_conf-files.zip"
 
 # Load FTP credentials
-FTP_HOST=$(grep 'host=' /root/.ftp_credentials | cut -d '=' -f2 | xargs)
-FTP_USER=$(grep 'user=' /root/.ftp_credentials | cut -d '=' -f2 | xargs)
-FTP_PASS=$(grep 'password=' /root/.ftp_credentials | cut -d '=' -f2 | xargs)
+FTP_HOST=$(grep '^host=' /root/.ftp_credentials | cut -d '=' -f2- | tr -d '\r' | xargs)
+FTP_USER=$(grep '^user=' /root/.ftp_credentials | cut -d '=' -f2- | tr -d '\r' | xargs)
+FTP_PASS=$(grep '^password=' /root/.ftp_credentials | cut -d '=' -f2- | tr -d '\r' | xargs)
 
 # List of configuration files and directories to back up
 CONFIG_FILES=(
@@ -107,12 +107,19 @@ rm -f "$ARCHIVE_NAME"
 # Create the archive from the contents of TMP_DIR
 zip -ry "$ARCHIVE_NAME" ./*  || { echo "Failed to create zip archive"; exit 1; }
 
-# Send the archive to the FTP server
+# Send the archive to the FTP server, encrypted: Dedibackup is plain FTP.
+# The local zip stays in clear (backup-offsite.sh encrypts it with rclone crypt).
 # Password via env var, not argv, so it never shows up in `ps`
-if ! LFTP_PASSWORD="$FTP_PASS" lftp -e "set net:max-retries 3; set net:timeout 30; put \"$ARCHIVE_NAME\"; bye" -u "$FTP_USER" --env-password "$FTP_HOST"; then
-    echo "ERROR: FTP upload of $ARCHIVE_NAME failed on $DATE" >&2
+PASSPHRASE_FILE=/root/.backup-passphrase
+if ! gpg --batch --yes --quiet --symmetric --cipher-algo AES256 \
+        --passphrase-file "$PASSPHRASE_FILE" -o "$ARCHIVE_NAME.gpg" "$ARCHIVE_NAME"; then
+    echo "ERROR: encryption of $ARCHIVE_NAME failed on $DATE (missing $PASSPHRASE_FILE?), not uploaded" >&2
+    FTP_FAILED=1
+elif ! LFTP_PASSWORD="$FTP_PASS" lftp -e "set net:max-retries 3; set net:timeout 30; put \"$ARCHIVE_NAME.gpg\"; bye" -u "$FTP_USER" --env-password "$FTP_HOST"; then
+    echo "ERROR: FTP upload of $ARCHIVE_NAME.gpg failed on $DATE" >&2
     FTP_FAILED=1
 fi
+rm -f "$ARCHIVE_NAME.gpg"
 
 # Clean up
 rm -rf "$TMP_DIR"

@@ -11,14 +11,10 @@ ARCHIVE_NAME="/var/backups/server/${DATE}_mysql.zip"
 
 
 # Load FTP credentials
-FTP_HOST=$(grep 'host=' /root/.ftp_credentials | cut -d '=' -f2 | xargs)
-FTP_USER=$(grep 'user=' /root/.ftp_credentials | cut -d '=' -f2 | xargs)
-FTP_PASS=$(grep 'password=' /root/.ftp_credentials | cut -d '=' -f2 | xargs)
+FTP_HOST=$(grep '^host=' /root/.ftp_credentials | cut -d '=' -f2- | tr -d '\r' | xargs)
+FTP_USER=$(grep '^user=' /root/.ftp_credentials | cut -d '=' -f2- | tr -d '\r' | xargs)
+FTP_PASS=$(grep '^password=' /root/.ftp_credentials | cut -d '=' -f2- | tr -d '\r' | xargs)
 
-
-echo "FTP_HOST: $FTP_HOST"
-echo "FTP_USER: $FTP_USER"
-echo "FTP_PASS: $FTP_PASS"
 
 # Create a temporary directory
 TMP_DIR=$(mktemp -d)
@@ -33,18 +29,47 @@ done
 # Export users
 mysql -e "SELECT User, Host FROM mysql.user" > "$TMP_DIR/mysql_users.txt"
 
+# Export accounts (password hashes) and grants as SQL, restorable with
+# `mysql --force < mysql_users_grants.sql` (--force skips accounts that
+# already exist on a fresh server, e.g. root). Not using
+# `mariadb-dump --system=users`: it fails on MariaDB 12.2 (collation bug).
+# No string literal in the WHERE: under cron the connection collation differs
+# and `is_role='N'` fails (ERROR 1267). Roles are the rows with an empty Host.
+mysql -Bse "SELECT User, Host FROM mysql.user WHERE LENGTH(Host) > 0" |
+while IFS=$'\t' read -r user host; do
+    # </dev/null: otherwise this mysql eats the rest of the loop's user list
+    # -r: batch mode otherwise escapes \ (clients\_db becomes clients\\_db)
+    mysql -Bsre "SHOW CREATE USER '$user'@'$host'; SHOW GRANTS FOR '$user'@'$host'" </dev/null | sed 's/$/;/'
+done > "$TMP_DIR/mysql_users_grants.sql"
+
 # Change to the temporary directory to ensure zip archives contents directly
 cd "$TMP_DIR" || exit
+
+# Replace any archive from an earlier run today (zip -r would merge into it)
+rm -f "$ARCHIVE_NAME"
 
 # Create the archive
 zip -r "$ARCHIVE_NAME" ./*  || { echo "Failed to create zip archive"; exit 1; }
 
-# Send the archive to the FTP server
-lftp -e "put \"$ARCHIVE_NAME\"; bye" -u "$FTP_USER","$FTP_PASS" "$FTP_HOST"
+# Send the archive to the FTP server, encrypted: Dedibackup is plain FTP.
+# The local zip stays in clear (backup-offsite.sh encrypts it with rclone crypt).
+# Password via env var, not argv, so it never shows up in `ps`
+PASSPHRASE_FILE=/root/.backup-passphrase
+if ! gpg --batch --yes --quiet --symmetric --cipher-algo AES256 \
+        --passphrase-file "$PASSPHRASE_FILE" -o "$ARCHIVE_NAME.gpg" "$ARCHIVE_NAME"; then
+    echo "ERROR: encryption of $ARCHIVE_NAME failed on $DATE (missing $PASSPHRASE_FILE?), not uploaded" >&2
+    FTP_FAILED=1
+elif ! LFTP_PASSWORD="$FTP_PASS" lftp -e "set net:max-retries 3; set net:timeout 30; put \"$ARCHIVE_NAME.gpg\"; bye" -u "$FTP_USER" --env-password "$FTP_HOST"; then
+    echo "ERROR: FTP upload of $ARCHIVE_NAME.gpg failed on $DATE" >&2
+    FTP_FAILED=1
+fi
+rm -f "$ARCHIVE_NAME.gpg"
 
 # Clean up
 rm -rf "$TMP_DIR"
 
 # Optionally, add logging
 echo "Backup of MariaDB databases completed on $DATE"
+
+exit "${FTP_FAILED:-0}"
 ```
