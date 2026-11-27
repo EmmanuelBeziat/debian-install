@@ -242,7 +242,10 @@
       shell: |
         set -e
         f={{ restore_dir }}/mysql/mysql_users_grants.sql
-        [ -f "$f" ] || exit 0
+        if [ ! -s "$f" ]; then
+          echo "$f is missing or empty: the sites' database accounts were not backed up, create them by hand" >&2
+          exit 1
+        fi
         grep -vE "\`(root|mariadb\.sys|mysql)\`@" "$f" \
           | sed -E 's/^CREATE USER /CREATE OR REPLACE USER /' \
           | mysql --force
