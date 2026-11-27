@@ -37,7 +37,8 @@ mysql -e "SELECT User, Host FROM mysql.user" > "$TMP_DIR/mysql_users.txt"
 mysql -Bse "SELECT User, Host FROM mysql.user WHERE LENGTH(Host) > 0" |
 while IFS=$'\t' read -r user host; do
     # </dev/null: otherwise this mysql eats the rest of the loop's user list
-    mysql -Bse "SHOW CREATE USER '$user'@'$host'; SHOW GRANTS FOR '$user'@'$host'" </dev/null | sed 's/$/;/'
+    # -r: batch mode otherwise escapes \ (clients\_db becomes clients\\_db)
+    mysql -Bsre "SHOW CREATE USER '$user'@'$host'; SHOW GRANTS FOR '$user'@'$host'" </dev/null | sed 's/$/;/'
 done > "$TMP_DIR/mysql_users_grants.sql"
 
 # Change to the temporary directory to ensure zip archives contents directly
