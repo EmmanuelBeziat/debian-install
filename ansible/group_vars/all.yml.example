@@ -46,6 +46,8 @@ rclone_version: "v1.76.0"
 # and builds uploaded by CI (no git checkout on the server)
 backup_sites_paths: []
 #  - "/var/www/clients/example/site/wp-config.php"
+#  - "/var/www/clients/example/site/.htaccess"
+#  - "/var/www/clients/example/site/wp-content/languages"
 #  - "/var/www/clients/example/site/wp-content/uploads"
 #  - "/var/www/clients/example-ci/site"
 # Enable only once /root/.config/rclone/rclone.conf is set up by hand
