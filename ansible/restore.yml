@@ -315,7 +315,24 @@
       register: git_restore
       changed_when: "'ok ' in git_restore.stdout"
 
-    # The webhook deploy scripts install dependencies and build (npm ci…)
+    # The deploy scripts only run npm ci when package-lock.json changed, which
+    # never happens on a fresh clone: install the dependencies first
+    - name: Install npm dependencies of the re-cloned checkouts
+      shell: |
+        . /root/.nvm/nvm.sh
+        list={{ restore_dir }}/conf-files/packages/git-repos.tsv
+        [ -f "$list" ] || exit 0
+        while IFS=$'\t' read -r path origin commit; do
+          [ -f "$path/package-lock.json" ] && [ ! -d "$path/node_modules" ] || continue
+          (cd "$path" && npm ci --no-audit --no-fund </dev/null >/dev/null 2>&1) \
+            && echo "ok $path" || echo "FAILED npm ci $path"
+        done < "$list"
+      args:
+        executable: /bin/bash
+      register: npm_restore
+      changed_when: "'ok ' in npm_restore.stdout"
+
+    # The webhook deploy scripts build, test and reload the apps
     - name: Run the webhook deploy scripts
       shell: |
         for script in /usr/share/hooks/*/deploy.sh; do
@@ -357,6 +374,7 @@
           - "Databases: {{ db_restore.stdout_lines | default(['skipped']) }}"
           - "WordPress core: {{ wordpress_restore.stdout_lines | default(['skipped']) }}"
           - "Git: {{ git_restore.stdout_lines | default([]) }}"
+          - "npm: {{ npm_restore.stdout_lines | default([]) }}"
           - "Deploy hooks: {{ hooks_restore.stdout_lines | default(['skipped']) }}"
           - "Services: {{ services_state.stdout_lines }}"
           - "Then run the check-web-services and check-mail-services skills."
