@@ -4,5 +4,7 @@ dovecot_config_version = 2.4.5
 # downgrade to Debian 12's 2.3 possible (the live server moved to 2.4 on
 # 2026-11-27); raise it once going back to 2.3 is out of the question.
 dovecot_storage_version = 2.3.0
-protocols = imap lmtp sieve pop3
+# No POP3 nor ManageSieve: unused (IMAP only over 30 days, 2026-11). The
+# dovecot-managesieved package stays: dovecot-sieve depends on it.
+protocols = imap lmtp
 !include_try conf.d/*.conf

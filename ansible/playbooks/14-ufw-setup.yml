@@ -66,18 +66,6 @@
         port: '993'
         proto: tcp
 
-    - name: Allow POP3
-      ufw:
-        rule: allow
-        port: '110'
-        proto: tcp
-
-    - name: Allow POP3S
-      ufw:
-        rule: allow
-        port: '995'
-        proto: tcp
-
 
     - name: Enable UFW
       ufw:
