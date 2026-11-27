@@ -100,11 +100,12 @@ done > "$TMP_DIR/packages/git-repos.tsv"
 # Change to the temporary directory to ensure zip archives contents directly
 cd "$TMP_DIR" || exit
 
-# Replace any archive from an earlier run today (zip -r would merge into it)
+# Replace any archive from an earlier run today (zip -r would merge into it).
+# -y stores symlinks as symlinks (sites-enabled, *.wants...), not as copies
 rm -f "$ARCHIVE_NAME"
 
 # Create the archive from the contents of TMP_DIR
-zip -r "$ARCHIVE_NAME" ./*  || { echo "Failed to create zip archive"; exit 1; }
+zip -ry "$ARCHIVE_NAME" ./*  || { echo "Failed to create zip archive"; exit 1; }
 
 # Send the archive to the FTP server
 # Password via env var, not argv, so it never shows up in `ps`
