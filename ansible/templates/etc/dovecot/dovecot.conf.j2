@@ -1,0 +1,8 @@
+# Dovecot 2.4, upstream packages (repo.dovecot.org)
+dovecot_config_version = 2.4.5
+# Oldest Dovecot that must read the files written here. 2.3.0 keeps a
+# downgrade to Debian 12's 2.3 possible (the live server moved to 2.4 on
+# 2026-11-27); raise it once going back to 2.3 is out of the question.
+dovecot_storage_version = 2.3.0
+protocols = imap lmtp sieve pop3
+!include_try conf.d/*.conf
