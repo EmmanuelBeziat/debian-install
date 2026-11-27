@@ -8,9 +8,9 @@ DATE=$(date +'%Y.%m.%d')
 ARCHIVE_NAME="/var/backups/server/${DATE}_conf-files.zip"
 
 # Load FTP credentials
-FTP_HOST=$(grep 'host=' /root/.ftp_credentials | cut -d '=' -f2 | xargs)
-FTP_USER=$(grep 'user=' /root/.ftp_credentials | cut -d '=' -f2 | xargs)
-FTP_PASS=$(grep 'password=' /root/.ftp_credentials | cut -d '=' -f2 | xargs)
+FTP_HOST=$(grep '^host=' /root/.ftp_credentials | cut -d '=' -f2- | tr -d '\r' | xargs)
+FTP_USER=$(grep '^user=' /root/.ftp_credentials | cut -d '=' -f2- | tr -d '\r' | xargs)
+FTP_PASS=$(grep '^password=' /root/.ftp_credentials | cut -d '=' -f2- | tr -d '\r' | xargs)
 
 # List of configuration files and directories to back up
 CONFIG_FILES=(

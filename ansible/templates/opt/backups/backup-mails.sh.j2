@@ -8,9 +8,9 @@ DATE=$(date +'%Y.%m.%d')
 ARCHIVE_NAME="/var/backups/server/${DATE}_mails.zip"
 
 # Load FTP credentials
-FTP_HOST=$(grep 'host=' /root/.ftp_credentials | cut -d '=' -f2 | xargs)
-FTP_USER=$(grep 'user=' /root/.ftp_credentials | cut -d '=' -f2 | xargs)
-FTP_PASS=$(grep 'password=' /root/.ftp_credentials | cut -d '=' -f2 | xargs)
+FTP_HOST=$(grep '^host=' /root/.ftp_credentials | cut -d '=' -f2- | tr -d '\r' | xargs)
+FTP_USER=$(grep '^user=' /root/.ftp_credentials | cut -d '=' -f2- | tr -d '\r' | xargs)
+FTP_PASS=$(grep '^password=' /root/.ftp_credentials | cut -d '=' -f2- | tr -d '\r' | xargs)
 
 # Discover every mailbox dynamically instead of a hardcoded list, so newly
 # added domains/mailboxes (via add-mail-domain / add-mailbox) are picked up
