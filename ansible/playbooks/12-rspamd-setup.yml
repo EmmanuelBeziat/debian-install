@@ -47,6 +47,20 @@
         state: present
         install_recommends: no
 
+    # Redis background saves fail under memory pressure without it (Redis
+    # warns at startup). Debian 13 no longer reads /etc/sysctl.conf.
+    - name: Allow memory overcommit for Redis
+      copy:
+        dest: /etc/sysctl.d/30-redis.conf
+        mode: '0644'
+        content: |
+          vm.overcommit_memory = 1
+      register: redis_sysctl
+
+    - name: Apply the Redis kernel setting now
+      command: sysctl -p /etc/sysctl.d/30-redis.conf
+      when: redis_sysctl.changed
+
     - name: Configure RSpamD milter headers
       template:
         src: ../templates/etc/rspamd/override.d/milter_headers.conf.j2
