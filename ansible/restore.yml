@@ -260,6 +260,17 @@
     # ---------------------------------------------------------------- sites
     # Paths are stored in full (rsync --relative): put them back as they were.
     # ownership.tsv / wordpress.tsv at the archive root are metadata.
+    # Archives made before backup-sites.sh switched to rsync --relative hold
+    # flat folders (barricade/, media/...) that would land at the root of /
+    - name: Check the site archive holds absolute paths
+      shell: |
+        cd {{ restore_dir }}/sites
+        ls -A | grep -vxE 'var|ownership\.tsv|wordpress\.tsv' || true
+      register: sites_layout
+      changed_when: false
+      failed_when: sites_layout.stdout | length > 0
+      when: "'sites' in restore_archives"
+
     - name: Restore site files
       shell: |
         set -e
